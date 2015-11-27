@@ -92,10 +92,10 @@ Author: Jesus Federico <jesus@123it.ca>
 
 		<label for="layout" >Layout:</label>
 	                <select id="layout" name="Layout">
-        	            <option value="Default" selected="selected">Default</option>
-                	    <option value="Video Chat">Video Chat</option>
-	                    <option value="Meeting">Meeting</option>
-			    <option value="Webinar">Webinar</option>
+        	            <option value="bbb.layout.name.defaultlayout" selected="selected">Default</option>
+                	    <option value="bbb.layout.name.videochat">Video Chat</option>
+	                    <option value="bbb.layout.name.webcamsfocus">Meeting</option>
+			    <option value="bbb.layout.name.presentfocus">Webinar</option>
 	                </select><br><br>
 
 		<label for="videomodule">Auto start webcam:</label>
@@ -170,8 +170,9 @@ Author: Jesus Federico <jesus@123it.ca>
 	Element webcamElement = getElementWithAttribute(firstChild, "name", "VideoconfModule");
 	if(param_VideoModule.equals("disable")){
 		webcamElement.getParentNode().removeChild(webcamElement);
-		Element videodockModule = getElementWithAttribute(firstChild, "name", "VideodockModule");
-		videodockModule.getParentNode().removeChild(videodockModule);
+		//This is not returning null, removing the next 2 lines fixes the issue with demo12.jsp
+		//Element videodockModule = getElementWithAttribute(firstChild, "name", "VideodockModule");
+		//videodockModule.getParentNode().removeChild(videodockModule);
 	}else{
 	        webcamElement.setAttribute("autoStart", param_VideoModule);		
 	}

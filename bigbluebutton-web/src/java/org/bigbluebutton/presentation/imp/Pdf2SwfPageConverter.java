@@ -36,16 +36,21 @@ public class Pdf2SwfPageConverter implements PageConverter {
 	    String AVM2SWF = "-T9";
 	    
 	    String COMMAND = SWFTOOLS_DIR + File.separator + "pdf2swf " + AVM2SWF + " -F " + fontsDir + " -p " + page + " " + source + " -o " + dest;    
-	    log.debug("Executing: " + COMMAND);
-	    
+
 	    boolean done = new ExternalProcessExecutor().exec(COMMAND, 60000);      
 		
 		File destFile = new File(dest);
 		if (done && destFile.exists()) {
 			return true;		
 		} else {
-			log.warn("Failed to convert: " + dest + " does not exist.");
-			return false;
+			COMMAND = SWFTOOLS_DIR + File.separator + "pdf2swf " + AVM2SWF + " -s poly2bitmap  -F " + fontsDir + " -p " + page + " " + source + " -o " + dest;
+			done = new ExternalProcessExecutor().exec(COMMAND, 60000);
+			if (done && destFile.exists()){
+				return true;
+			} else {
+				log.warn("Failed to convert: " + dest + " does not exist.");
+				return false;
+			}
 		}
 		
 	}

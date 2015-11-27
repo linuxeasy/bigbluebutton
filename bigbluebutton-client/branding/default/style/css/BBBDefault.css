@@ -23,6 +23,16 @@ Panel {
   titleStyleName: "mypanelTitle";
 }
 
+ToolTip {
+	borderSkin      : ClassReference("org.bigbluebutton.skins.ToolTipSkin");
+	backgroundAlpha : 0.9;
+	cornerRadius    : 3;
+}
+
+.errorTip {
+	borderColor		: #3b3b3b;
+}
+
 .mypanelTitle {
   color: #444444;
   fontFamily: Arial;
@@ -44,10 +54,60 @@ Panel {
   fontWeight: bold;
   fontSize: 15;
   fontFamily: Arial;
+  textAlign: center;
   color: #e1e2e5;
 }
 
-Button, .logoutButtonStyle, .chatSendButtonStyle, .helpLinkButtonStyle, .cameraDisplaySettingsWindowChangeResolutionCombo, .languageSelectorStyle, .testJavaLinkButtonStyle, .recordButtonStyleNormal, .recordButtonStyleStart, .recordButtonStyleStop, .micSettingsWindowHelpButtonStyle {
+.recordingLabelStyle {
+  fontWeight: bold;
+  fontSize: 15;
+  fontFamily: Arial;
+  color: #e1e2e5;
+}
+
+.videoMessageWarningLabelStyle {
+  fontWeight: bold;
+  fontSize: 18;
+  fontFamily: Arial;
+  color: #ffff26;
+}
+
+.videoMessageErrorLabelStyle {
+  fontWeight: bold;
+  fontSize: 18;
+  fontFamily: Arial;
+  color: #ff2727;
+}
+
+.videoMessageBackgroundStyle {
+  backgroundAlpha: 0.6;
+  backgroundColor: #b9babc;
+}
+
+.videoToolbarBackgroundTalkingStyle {
+  backgroundColor: #20c600;
+  backgroundAlpha: 0.6;
+}
+
+.videoToolbarBackgroundNotTalkingStyle {
+  backgroundColor: #42444c;
+  backgroundAlpha: 0.6;
+}
+
+.videoToolbarLabelStyle {
+  textIndent: 0;
+  color: #ffffff;
+  fontFamily: Arial;
+}
+
+.pollResondersLabelStyle {
+	color: #444444;
+	fontFamily: Arial;
+	fontSize: 16;
+	fontWeight: bold;
+}
+
+Button, .logoutButtonStyle, .chatSendButtonStyle, .helpLinkButtonStyle, .cameraDisplaySettingsWindowProfileComboStyle, .cameraDisplaySettingsWindowCameraSelector, .languageSelectorStyle, .testJavaLinkButtonStyle, .recordButtonStyleNormal, .recordButtonStyleStart, .recordButtonStyleStop, .micSettingsWindowHelpButtonStyle {
   textIndent: 0;
   paddingLeft: 10;
   paddingRight: 10;
@@ -195,7 +255,44 @@ DataGrid {
   icon: Embed('assets/images/triangle.png');    
 }
 
-.presentationUploadButtonStyle, .presentationBackButtonStyle, .presentationBackButtonDisabledStyle, .presentationForwardButtonStyle, .presentationForwardButtonDisabledStyle,
+.voiceConfDefaultButtonStyle {
+  icon: Embed('assets/images/headset.png');    
+}
+
+.voiceConfActiveButtonStyle {
+  icon: Embed('assets/images/headset_open.png');    
+}
+
+.voiceConfInactiveButtonStyle {
+  icon: Embed('assets/images/headset_close.png');    
+}
+
+.webcamDefaultButtonStyle {
+  icon: Embed('assets/images/webcam.png');    
+}
+
+.webcamOnButtonStyle {
+  icon: Embed('assets/images/webcam_on.png');    
+}
+
+.webcamOffButtonStyle {
+  icon: Embed('assets/images/webcam_close.png');    
+}
+
+.deskshareDefaultButtonStyle {
+  icon: Embed('assets/images/deskshare_icon.png');    
+}
+
+.deskshareOnButtonStyle {
+  icon: Embed('assets/images/deskshare_on.png');    
+}
+
+.deskshareOffButtonStyle {
+  icon: Embed('assets/images/deskshare_close.png');    
+}
+
+
+.presentationUploadButtonStyle, .pollStartButtonStyle, .presentationBackButtonStyle, .presentationBackButtonDisabledStyle, .presentationForwardButtonStyle, .presentationForwardButtonDisabledStyle,
 .presentationFitToWidthButtonStyle, .presentationFitToPageButtonStyle 
 {
   textIndent: 0;
@@ -217,6 +314,10 @@ DataGrid {
 
 .presentationUploadButtonStyle {
   icon:   Embed('assets/images/upload.png');   
+}
+
+.pollStartButtonStyle {
+  icon:   Embed('assets/images/poll_icon.png');
 }
 
 .presentationBackButtonStyle {
@@ -266,6 +367,16 @@ DataGrid {
   fontFamily: Arial;
 }
 
+.deskshareControlButtonStyle {
+  fillAlphas: 1, 1, 1, 1;
+  fillColors: #fefeff, #e1e2e5, #ffffff, #eeeeee;
+  color: #5e5f63;
+  textRollOverColor: #5e5f63;
+  textSelectedColor: #5e5f63;
+  borderColor: #b9babc;  
+  cornerRadius: 17;
+}
+
 .videoMuteButtonStyle, .videoUnmutedButtonStyle, .videoSwitchPresenterButtonStyle, .videoEjectUserButtonStyle, .videoPrivateChatButtonStyle {
   fillAlphas: 1, 1, 1, 1;
   fillColors: #fefeff, #e1e2e5, #ffffff, #eeeeee;
@@ -304,7 +415,7 @@ DataGrid {
   icon:   Embed('assets/images/webcam-private-chat.png');
 }
 
-.presentationFileUploadWindowStyle {
+TitleWindow {
   borderColor: #b9babc;
   borderAlpha: 1;
   borderThicknessLeft: 10;
@@ -315,11 +426,8 @@ DataGrid {
   cornerRadius: 5;
   headerHeight: 20;
   backgroundAlpha: 1;
-  headerColors: #b9babc, #b9babc;
-  footerColors: #b9babc, #b9babc;
   backgroundColor: #EFEFEF;
   dropShadowEnabled: true;
-  titleStyleName: "presentationFileUploadWindowTitleStyle";
 }
 
 .presentationFileUploadWindowTitleStyle, .presentationUploadTitleStyle {
@@ -328,7 +436,7 @@ DataGrid {
   fontWeight: bold;
 }
 
-.presentationUploadChooseFileLabelStyle, .presentationNamesLabelStyle {
+.presentationNamesLabelStyle {
   fontFamily: Arial;
   fontSize: 14;  
   fontWeight: bold;
@@ -387,44 +495,24 @@ DataGrid {
 
 }
 
+.presentationUploadFileFormatHintBoxStyle {
+	backgroundColor: #D4D4D4;
+	dropShadowEnabled: false;
+	paddingLeft: 10;
+	paddingRight: 10
+}
+
 .presentationUploadFileFormatHintTextStyle {
 	fontWeight: bold;
 }
 
-.cameraDisplaySettingsWindowStyle {
-  borderColor: #b9babc;
-  borderAlpha: 1;
-  borderThicknessLeft: 10;
-  borderThicknessTop: 0;
-  borderThicknessBottom: 10;
-  borderThicknessRight: 10;
-  roundedBottomCorners: true;
-  cornerRadius: 5;
-  headerHeight: 20;
-  backgroundAlpha: 1;
-  headerColors: #b9babc, #b9babc;
-  footerColors: #b9babc, #b9babc;
-  backgroundColor: #EFEFEF;
-  dropShadowEnabled: true;
-  titleStyleName: "webcamSettingsWindowTitleStyle";
+.desktopShareTextStyle {
+	fontSize:	11;
+	fontWeight:	bold;	
 }
 
-.micSettingsWindowStyle {
-  borderColor: #b9babc;
-  borderAlpha: 1;
-  borderThicknessLeft: 10;
-  borderThicknessTop: 0;
-  borderThicknessBottom: 10;
-  borderThicknessRight: 10;
-  roundedBottomCorners: true;
-  cornerRadius: 5;
-  headerHeight: 20;
-  backgroundAlpha: 1;
-  headerColors: #b9babc, #b9babc;
-  footerColors: #b9babc, #b9babc;
-  backgroundColor: #EFEFEF;
-  dropShadowEnabled: true;
-  titleStyleName: "micSettingsWindowTitleStyle";
+.chromeJavaHelpImage {
+	imageSource: Embed(source='assets/images/chromePluginBlocked.png');
 }
 
 .webcamSettingsWindowTitleStyle, .micSettingsWindowTitleStyle {
@@ -439,9 +527,9 @@ DataGrid {
   fontWeight: bold;    
 }
 
-.micSettingsWindowHearFromHeadsetLabelStyle, .micSettingsWindowSpeakIntoMicLabelStyle, .micSettingsWindowMicNameLabelStyle {
+.micSettingsWindowHearFromHeadsetLabelStyle, .micSettingsWindowSpeakIntoMicLabelStyle, .micSettingsWindowMicNameLabelStyle, .webcamPermissionSettingsTextStyle {
   fontFamily: Arial;
-  fontSize: 12;    
+  fontSize: 14;    
 }
 
 .micSettingsWindowPlaySoundButtonStyle, .micSettingsWindowChangeMicButtonStyle {
@@ -478,10 +566,6 @@ DataGrid {
   cornerRadius: 5;    
 }
 
-.micSettingsWindowMicProgressBarStyle {
-  
-}
-
 .micSettingsWindowHelpButtonStyle {
 	paddingLeft: 4;
 	paddingRight: 4;
@@ -501,7 +585,7 @@ MDIWindow { /*None of the following properties are overridden by the MDIWindow c
 	
 	cornerRadius: 5;
 	dropShadowEnabled: false;
-	titleStyleName: "mypanelTitle";
+	titleStyleName: "mdiWindowTitle";
 	
 	cornerResizeImg: Embed(source="assets/swf/Blue.swf", symbol="Corner_Resize");
 	cornerResizeWidth: 2;
@@ -656,7 +740,7 @@ MDIWindow { /*None of the following properties are overridden by the MDIWindow c
 	borderThicknessRight: 3;
 }
 
-.mypanelTitle {
+.mdiWindowTitle {
   color: #5e5f63;
   fontFamily: Arial;
   fontSize: 12;
@@ -696,6 +780,27 @@ MDIWindow { /*None of the following properties are overridden by the MDIWindow c
   disabledSkin:  Embed('assets/images/3_minimizeButton.png');
 }
 
+/*
+https://www.iconfinder.com/icons/172512/mute_icon#size=128
+*/
+.muteOverlayBtn
+{
+  upSkin:        Embed('assets/images/audio_20_white.png');
+  overSkin:      Embed('assets/images/audio_20_white.png');
+  downSkin:      Embed('assets/images/audio_20_white.png');
+  disabledSkin:  Embed('assets/images/audio_20_white.png');
+}
+
+/*
+https://www.iconfinder.com/icons/172499/low_volume_icon#size=128
+*/
+.unmuteOverlayBtn
+{
+  upSkin:        Embed('assets/images/audio_muted_20_white.png');
+  overSkin:      Embed('assets/images/audio_muted_20_white.png');
+  downSkin:      Embed('assets/images/audio_muted_20_white.png');
+  disabledSkin:  Embed('assets/images/audio_muted_20_white.png');
+}
 
 .resizeHndlr 
 {
@@ -711,36 +816,18 @@ MDIWindow { /*None of the following properties are overridden by the MDIWindow c
 }
 
 Alert {
-  borderColor: #DFDFDF;
-  backgroundColor: #EFEFEF;
-  borderAlpha: 1;
-  shadowDistance: 1;
-  dropShadowColor: #FFFFFF;
-  color: #000000;
+	borderColor: #DFDFDF;
+	backgroundColor: #EFEFEF;
+	borderAlpha: 1;
+	shadowDistance: 1;
+	dropShadowColor: #FFFFFF;
+	color: #000000;
 }
 
 .lockSettingsDefaultLabelStyle {
 	fontFamily: Arial;
 	fontSize: 14;  
 	fontWeight: bold;    
-}
-
-.lockSettingsWindowStyle {
-	borderColor: #b9babc;
-	borderAlpha: 1;
-	borderThicknessLeft: 10;
-	borderThicknessTop: 0;
-	borderThicknessBottom: 10;
-	borderThicknessRight: 10;
-	roundedBottomCorners: true;
-	cornerRadius: 5;
-	headerHeight: 20;
-	backgroundAlpha: 1;
-	headerColors: #b9babc, #b9babc;
-	footerColors: #b9babc, #b9babc;
-	backgroundColor: #EFEFEF;
-	dropShadowEnabled: true;
-	titleStyleName: "micSettingsWindowTitleStyle";
 }
 
 .lockSettingsWindowTitleStyle {
@@ -759,4 +846,63 @@ Alert {
 
 .recordButtonStyleStop {
   icon:   Embed('assets/images/control-record-stop.png');
+}
+
+.statusImageStyle {
+  successImage:   Embed(source='assets/images/status_success.png');
+  warningImage:   Embed(source='assets/images/status_warning.png');
+  failImage:      Embed(source='assets/images/status_fail.png');
+  refreshImage:   Embed(source='assets/images/status_refresh.png');
+}
+
+.warningButtonStyle {
+  icon:   Embed('assets/images/status_warning_20.png');
+}
+
+.statusTitleStyle {
+  fontWeight: bold;
+  fontSize: 12;
+  paddingBottom: 0;
+}
+
+.statusMessageStyle {
+  fontSize: 12;
+  paddingTop: 0;
+}
+
+.statusTimeStyle {
+  fontSize: 10;
+  paddingTop: 0;
+}
+
+PollChoicesModal {
+	fontSize: 14;
+	paddingLeft: 16;
+	paddingRight: 16;
+}
+
+.chatOptionsLabel {
+	fontSize: 12;
+	color: #000000;
+	textRollOverColor: #000000;
+	textSelectedColor: #000000;
+	fontFamily: Arial;
+}
+
+EmojiGrid {
+	backgroundColor: #ffffff;
+	horizontalAlign: center;
+	paddingLeft: 0;
+	paddingRight: 0;
+	paddingBottom: 0;
+	paddingTop: 0;
+}
+
+.emojiGridTile {
+	paddingBottom: 10;
+	paddingLeft: 10;
+	paddingRight: 10;
+	paddingTop: 10;
+	verticalGap: 6;
+	horizontalGap: 6;
 }

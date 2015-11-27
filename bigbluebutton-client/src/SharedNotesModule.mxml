@@ -25,16 +25,10 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 		<![CDATA[
 			import com.asfusion.mate.events.Dispatcher;
 			
-			import flexlib.mdi.containers.MDIWindow;
-			
-			import org.bigbluebutton.common.IBbbModuleWindow;
-			import org.bigbluebutton.common.LogUtil;
-			import org.bigbluebutton.common.events.CloseWindowEvent;
-			import org.bigbluebutton.common.events.OpenWindowEvent;
+			import org.bigbluebutton.common.IBigBlueButtonModule;
 			import org.bigbluebutton.common.events.ToolbarButtonEvent;
 			import org.bigbluebutton.modules.sharednotes.SharedNotesWindow;
 			import org.bigbluebutton.modules.sharednotes.ToolbarButton;
-			import org.bigbluebutton.modules.sharednotes.infrastructure.Client;
 			import org.bigbluebutton.modules.sharednotes.infrastructure.HTTPServerConnection;
 			
 			private var _moduleName:String = "Notes Module";			
@@ -62,11 +56,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			public function get username():String {
 				return _attributes.username;
 			}
-			
-			public function get connection():NetConnection {
-				return _attributes.connection;
-			}
-			
+					
 			public function get mode():String {
 				if (_attributes.mode == null) {					
 					_attributes.mode = "LIVE"

@@ -190,8 +190,13 @@ def processClearEvents
 		#clearTime = ( clearEvent[:timestamp].to_f / 1000 ).round(1)
 		$pageCleared = clearEvent.xpath(".//pageNumber")[0].text()
 		slideFolder = clearEvent.xpath(".//presentation")[0].text()
-		#$clearPageTimes[clearTime] = [$pageCleared, $canvas_number, "presentation/#{slideFolder}/slide-#{$pageCleared.to_i+1}.png", nil]
-		$clearPageTimes[($prev_clear_time..clearTime)] = [$pageCleared, $canvas_number, "presentation/#{slideFolder}/slide-#{$pageCleared}.png", nil]
+		if $version_atleast_0_9_0
+			$clearPageTimes[($prev_clear_time..clearTime)] =
+				[$pageCleared, $canvas_number, "presentation/#{slideFolder}/slide-#{$pageCleared.to_i + 1}.png", nil]
+		else
+			$clearPageTimes[($prev_clear_time..clearTime)] =
+				[$pageCleared, $canvas_number, "presentation/#{slideFolder}/slide-#{$pageCleared}.png", nil]
+		end
 		$prev_clear_time = clearTime
 		$canvas_number+=1
 	end
@@ -432,6 +437,86 @@ def storeTextShape
 	$originalOriginY = $originY
 end
 
+def storePollResultShape(xml, shape)
+  origin_x = $shapeDataPoints[0].to_f / 100 * $vbox_width
+  origin_y = $shapeDataPoints[1].to_f / 100 * $vbox_height
+  width = $shapeDataPoints[2].to_f / 100 * $vbox_width
+  height = $shapeDataPoints[3].to_f / 100 * $vbox_height
+
+  result = JSON.load(shape.at_xpath('result').text)
+  num_responders = shape.at_xpath('num_responders').text.to_i
+  presentation = shape.at_xpath('presentation').text
+
+  $global_shape_count += 1
+  $poll_result_count += 1
+
+  dat_file = "#{$process_dir}/poll_result#{$poll_result_count}.dat"
+  gpl_file = "#{$process_dir}/poll_result#{$poll_result_count}.gpl"
+  pdf_file = "#{$process_dir}/poll_result#{$poll_result_count}.pdf"
+  svg_file = "#{$process_dir}/presentation/#{presentation}/poll_result#{$poll_result_count}.svg"
+
+  # Use gnuplot to generate an SVG image for the graph
+  File.open(dat_file, 'w') do |d|
+    result.each do |r|
+      d.puts("#{r['id']} #{r['num_votes']}")
+    end
+  end
+  File.open(dat_file, 'r') do |d|
+    BigBlueButton.logger.debug("gnuplot data:")
+    BigBlueButton.logger.debug(d.readlines(nil)[0])
+  end
+  File.open(gpl_file, 'w') do |g|
+    g.puts('reset')
+    g.puts("set term pdfcairo size #{height / 72}, #{width / 72} font \"Arial,48\"")
+    g.puts('unset key')
+    g.puts('set style data boxes')
+    g.puts('set style fill solid border -1')
+    g.puts('set boxwidth 0.9 relative')
+    g.puts('set yrange [0:*]')
+    g.puts('unset border')
+    g.puts('unset ytics')
+    xtics = result.map{ |r| "\"#{r['key'].gsub('%', '%%')}\" #{r['id']}" }.join(', ')
+    g.puts("set xtics rotate by 90 scale 0 right (#{xtics})")
+    if num_responders > 0
+      x2tics = result.map{ |r| "\"#{(r['num_votes'].to_f / num_responders * 100).to_i}%%\" #{r['id']}" }.join(', ')
+      g.puts("set x2tics rotate by 90 scale 0 left (#{x2tics})")
+    end
+    g.puts('set linetype 1 linewidth 1 linecolor rgb "black"')
+    result.each do |r|
+      if r['num_votes'] == 0 or r['num_votes'].to_f / num_responders <= 0.5
+        g.puts("set label \"#{r['num_votes']}\" at #{r['id']},#{r['num_votes']} left rotate by 90 offset 0,character 0.5 front")
+      else
+        g.puts("set label \"#{r['num_votes']}\" at #{r['id']},#{r['num_votes']} right rotate by 90 offset 0,character -0.5 textcolor rgb \"white\" front")
+      end
+    end
+    g.puts("set output \"#{pdf_file}\"")
+    g.puts("plot \"#{dat_file}\"")
+  end
+  File.open(gpl_file, 'r') do |d|
+    BigBlueButton.logger.debug("gnuplot script:")
+    BigBlueButton.logger.debug(d.readlines(nil)[0])
+  end
+  ret = BigBlueButton.exec_ret('gnuplot', '-d', gpl_file)
+  raise "Failed to generate plot pdf" if ret != 0
+  ret = BigBlueButton.exec_ret('pdftocairo', '-svg', pdf_file, svg_file)
+  raise "Failed to convert poll to svg" if ret != 0
+
+  xml.g(class: 'shape', id: "draw#{$global_shape_count}",
+      shape: "poll_result#{$poll_result_count}", style: 'visibility:hidden',
+      timestamp: $shapeCreationTime, undo: $shapeUndoTime) do
+
+    # Outer box to act as poll result backdrop
+    xml.rect(x: origin_x + 2, y: origin_y + 2, width: width - 4, height: height - 4,
+        'fill' => 'white', 'stroke' => 'black', 'stroke-width' => 4)
+
+    # Poll image
+    xml.image('xlink:href' => "presentation/#{presentation}/poll_result#{$poll_result_count}.svg",
+        height: width, width: height, x: $vbox_width, y: origin_y,
+        transform: "rotate(90, #{$vbox_width}, #{origin_y})")
+
+  end
+end
+
 #
 # Calculate the offsets based on the start and stop recording events, so it's easier
 # to translate the timestamps later based on these offsets
@@ -533,10 +618,10 @@ def processSlideEvents
 			slide_timestamp =  node[:timestamp]
 			slide_start = ( translateTimestamp(slide_timestamp) / 1000 ).round(1)
 			orig_slide_start = ( slide_timestamp.to_f / 1000 ).round(1)
-			slide_number = node.xpath(".//slide")[0].text()
-                        slide_number = slide_number.to_i < 0 ? "0" : slide_number			
-			slide_src = "presentation/#{$presentation_name}/slide-#{slide_number.to_i + 1}.png"
-                        txt_file_path = "presentation/#{$presentation_name}/textfiles/slide-#{slide_number.to_i + 1}.txt"
+			slide_number = node.xpath(".//slide")[0].text().to_i
+                        slide_number = slide_number < 0 ? 0 : slide_number
+			slide_src = "presentation/#{$presentation_name}/slide-#{slide_number + 1}.png"
+                        txt_file_path = "presentation/#{$presentation_name}/textfiles/slide-#{slide_number + 1}.txt"
                         slide_text = File.exist?("#{$process_dir}/#{txt_file_path}") ? txt_file_path : nil
 			image_url = "#{$process_dir}/#{slide_src}"
 
@@ -609,7 +694,7 @@ def processShapesAndClears
 		$xml.svg(:id => :svgfile, :style => 'position:absolute; height:600px; width:800px;', :xmlns => 'http://www.w3.org/2000/svg', 'xmlns:xlink' => 'http://www.w3.org/1999/xlink', :version => '1.1', :viewBox => :'0 0 800 600') do
 
 			# This is for the first image. It is a placeholder for an image that doesn't exist.
-			$xml.image(:id => :image0, :in => 0, :out => $first_slide_start, :src => "logo.png", :width => 800)
+			$xml.image(:id => :image0, :class => 'slide', :in => 0, :out => $first_slide_start, :src => "logo.png", :width => 800)
 			$xml.g(:class => :canvas, :id => :canvas0, :image => :image0, :display => :none)
 			$presentation_name = ""
 			
@@ -620,7 +705,7 @@ def processShapesAndClears
 			# Print out the gathered/detected images. 
 			$slides_compiled.each do |key, val|
 				$val = val
-				$xml.image(:id => "image#{$val[2].to_i}", :in => $val[0].join(' '), :out => $val[1].join(' '), 'xlink:href' => key[0], :height => key[1], :width => key[2], :visibility => :hidden, :text => $val[3], :x => 0)
+				$xml.image(:id => "image#{$val[2].to_i}", :class => 'slide', :in => $val[0].join(' '), :out => $val[1].join(' '), 'xlink:href' => key[0], :height => key[1], :width => key[2], :visibility => :hidden, :text => $val[3], :x => 0)
 				$canvas_number+=1
 				$xml.g(:class => :canvas, :id => "canvas#{$val[2].to_i}", :image => "image#{$val[2].to_i}", :display => :none) do
 					
@@ -649,14 +734,17 @@ def processShapesAndClears
                                                         $pageNumber = shape.xpath(".//pageNumber")[0].text()
                                                         $shapeDataPoints = shape.xpath(".//dataPoints")[0].text().split(",")
 
-                                                        if($shapeType == "text")
+                                                        case $shapeType
+                                                        when 'pencil', 'rectangle', 'ellipse', 'triangle', 'line'
+                                                                $shapeThickness = shape.xpath(".//thickness")[0].text()
+                                                                colour = shape.xpath(".//color")[0].text()
+                                                        when 'text'
                                                                 $textValue = shape.xpath(".//text")[0].text()
                                                                 $textFontType = "Arial"
                                                                 $textFontSize = shape.xpath(".//fontSize")[0].text()
                                                                 colour = shape.xpath(".//fontColor")[0].text()
-                                                        else
-                                                                $shapeThickness = shape.xpath(".//thickness")[0].text()
-                                                                colour = shape.xpath(".//color")[0].text()
+                                                        when 'poll_result'
+                                                          # Just hand the 'shape' xml object to the poll rendering code.
                                                         end
 							
 							# figure out undo time
@@ -708,16 +796,12 @@ def processShapesAndClears
 								end
 							end
 							
-							# Process the pencil shapes.
-							if $shapeType.eql? "pencil"
+                                                        case $shapeType
+                                                        when 'pencil'
 								storePencilShape()
-
-							# Process the line shapes.
-							elsif $shapeType.eql? "line"
+                                                        when 'line'
 								storeLineShape()
-
-							# Process the rectangle shapes
-							elsif $shapeType.eql? "rectangle"
+                                                        when 'rectangle'
 								square = shape.xpath(".//square")
 								if square.length > 0
 									$is_square = square[0].text()
@@ -725,13 +809,9 @@ def processShapesAndClears
 									$is_square = 'false'
 								end
 								storeRectShape()
-
-							# Process the triangle shapes
-							elsif $shapeType.eql? "triangle"
+                                                        when 'triangle'
 								storeTriangleShape()
-
-							# Process the ellipse shapes
-							elsif $shapeType.eql? "ellipse"
+                                                        when 'ellipse'
 								circle = shape.xpath(".//circle")
 								if circle.length > 0
 									$is_circle = circle[0].text()
@@ -739,12 +819,13 @@ def processShapesAndClears
 									$is_circle = 'false'
 								end
 								storeEllipseShape()
-							
-							elsif $shapeType.eql? "text"
+                                                        when 'text'
 								$textBoxWidth = shape.xpath(".//textBoxWidth")[0].text()
 								$textBoxHeight = shape.xpath(".//textBoxHeight")[0].text()
 								storeTextShape()
-							end # end if pencil (and other shapes)
+                                                        when 'poll_result'
+                                                          storePollResultShape($xml, shape)
+							end
 						end # end if(in_this_image)
 					end # end shape_events.each do |shape|
 				end
@@ -796,6 +877,7 @@ $pencil_count = 0
 $line_count = 0
 $ellipse_count = 0
 $text_count = 0
+$poll_result_count = 0
 $global_shape_count = -1
 $global_slide_count = 1
 $global_page_count = 0
@@ -825,19 +907,28 @@ $playback = match[2]
 
 puts $meeting_id
 puts $playback
+
+begin
+
 if ($playback == "presentation")
-	logger = Logger.new("/var/log/bigbluebutton/presentation/publish-#{$meeting_id}.log", 'daily' )
-	BigBlueButton.logger = logger
+
 	# This script lives in scripts/archive/steps while properties.yaml lives in scripts/
 	bbb_props = YAML::load(File.open('../../core/scripts/bigbluebutton.yml'))
 	simple_props = YAML::load(File.open('presentation.yml'))
+
+    log_dir = bbb_props['log_dir']
+
+	logger = Logger.new("#{log_dir}/presentation/publish-#{$meeting_id}.log", 'daily' )
+	BigBlueButton.logger = logger
+
 	BigBlueButton.logger.info("Setting recording dir")
 	recording_dir = bbb_props['recording_dir']
 	BigBlueButton.logger.info("Setting process dir")
 	$process_dir = "#{recording_dir}/process/presentation/#{$meeting_id}"
 	BigBlueButton.logger.info("setting publish dir")
 	publish_dir = simple_props['publish_dir']
-	BigBlueButton.logger.info("setting playback host")
+	BigBlueButton.logger.info("setting playback url info")
+        playback_protocol = bbb_props['playback_protocol']
 	playback_host = bbb_props['playback_host']
 	BigBlueButton.logger.info("setting target dir")
 	target_dir = "#{recording_dir}/publish/presentation/#{$meeting_id}"
@@ -869,9 +960,6 @@ if ($playback == "presentation")
 			BigBlueButton.logger.info("Copied audio.ogg file")
 		end
 
-		BigBlueButton.logger.info("Copying files to package dir")
-		FileUtils.cp_r("#{$process_dir}/presentation", package_dir)
-		BigBlueButton.logger.info("Copied files to package dir")
 
 		processing_time = File.read("#{$process_dir}/processing_time")
 
@@ -881,7 +969,21 @@ if ($playback == "presentation")
 
 		recording_time = computeRecordingLength()
 
+		# presentation_url = "/slides/" + $meeting_id + "/presentation"
+		@doc = Nokogiri::XML(File.open("#{$process_dir}/events.xml"))
+
+		$meeting_start = @doc.xpath("//event")[0][:timestamp]
+		$meeting_end = @doc.xpath("//event").last()[:timestamp]
+		
+		$version = BigBlueButton::Events.bbb_version("#{$process_dir}/events.xml")
+		$version_atleast_0_9_0 = BigBlueButton::Events.bbb_version_compare("#{$process_dir}/events.xml", 0, 9, 0)
 		BigBlueButton.logger.info("Creating metadata.xml")
+
+                # Get the real-time start and end timestamp
+                match = /.*-(\d+)$/.match($meeting_id)
+                real_start_time = match[1]
+                real_end_time = (real_start_time.to_i + ($meeting_end.to_i - $meeting_start.to_i)).to_s
+
 		# Create metadata.xml
 		b = Builder::XmlMarkup.new(:indent => 2)
 
@@ -890,11 +992,11 @@ if ($playback == "presentation")
 			b.state("available")
 			b.published(true)
 			# Date Format for recordings: Thu Mar 04 14:05:56 UTC 2010
-			b.start_time(BigBlueButton::Events.first_event_timestamp("#{$process_dir}/events.xml"))
-			b.end_time(BigBlueButton::Events.last_event_timestamp("#{$process_dir}/events.xml"))
+			b.start_time(real_start_time)
+			b.end_time(real_end_time)
 			b.playback {
 				b.format("presentation")
-				b.link("http://#{playback_host}/playback/presentation/playback.html?meetingId=#{$meeting_id}")
+				b.link("#{playback_protocol}://#{playback_host}/playback/presentation/0.9.0/playback.html?meetingId=#{$meeting_id}")
 				b.processing_time("#{processing_time}")
 				b.duration("#{recording_time}")
 			}
@@ -908,11 +1010,6 @@ if ($playback == "presentation")
 		BigBlueButton.logger.info("Generating xml for slides and chat")
 	
 		#Create slides.xml
-		# presentation_url = "/slides/" + $meeting_id + "/presentation"
-		@doc = Nokogiri::XML(File.open("#{$process_dir}/events.xml"))
-
-		$meeting_start = @doc.xpath("//event[@eventname='ParticipantJoinEvent']")[0][:timestamp]
-		$meeting_end = @doc.xpath("//event[@eventname='EndAndKickAllEvent']").last()[:timestamp]
 
 		# Gathering all the events from the events.xml
 		$slides_events = @doc.xpath("//event[@eventname='GotoSlideEvent' or @eventname='SharePresentationEvent']")
@@ -922,8 +1019,8 @@ if ($playback == "presentation")
 		$cursor_events = @doc.xpath("//event[@eventname='CursorMoveEvent']")
 		$clear_page_events = @doc.xpath("//event[@eventname='ClearPageEvent']") # for clearing the svg image
 		$undo_events = @doc.xpath("//event[@eventname='UndoShapeEvent']") # for undoing shapes.
-		$join_time = @doc.xpath("//event[@eventname='ParticipantJoinEvent']")[0][:timestamp].to_f
-		$end_time = @doc.xpath("//event[@eventname='EndAndKickAllEvent']")[0][:timestamp].to_f
+		$join_time = $meeting_start.to_f
+		$end_time = $meeting_end.to_f
 
 		calculateRecordEventsOffset()
 		
@@ -953,6 +1050,10 @@ if ($playback == "presentation")
 		# Write panzooms.xml to file
 		File.open("#{package_dir}/#{$cursor_xml_filename}", 'w') { |f| f.puts $cursor_xml.to_xml }
 
+		BigBlueButton.logger.info("Copying files to package dir")
+		FileUtils.cp_r("#{$process_dir}/presentation", package_dir)
+		BigBlueButton.logger.info("Copied files to package dir")
+
 	        BigBlueButton.logger.info("Publishing slides")
 		# Now publish this recording files by copying them into the publish folder.
 		if not FileTest.directory?(publish_dir)
@@ -973,11 +1074,25 @@ if ($playback == "presentation")
 			end
 			exit 1
 		end
+        publish_done = File.new("#{recording_dir}/status/published/#{$meeting_id}-presentation.done", "w")
+        publish_done.write("Published #{$meeting_id}")
+        publish_done.close
+
 	else
 		BigBlueButton.logger.info("#{target_dir} is already there")
 	end
 end
 
 
+rescue Exception => e
+        BigBlueButton.logger.error(e.message)
+        e.backtrace.each do |traceline|
+            BigBlueButton.logger.error(traceline)
+        end
+        publish_done = File.new("#{recording_dir}/status/published/#{$meeting_id}-presentation.fail", "w")
+        publish_done.write("Failed Publishing #{$meeting_id}")
+        publish_done.close
 
+        exit 1
+end
 

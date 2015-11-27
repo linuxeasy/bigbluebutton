@@ -18,29 +18,24 @@
 */
 package org.bigbluebutton.main.model.modules
 {
-	import com.asfusion.mate.events.Dispatcher;
-	
-	import mx.controls.Alert;
-	
-	import org.bigbluebutton.common.LogUtil;
-	import org.bigbluebutton.main.events.PortTestEvent;
-	import org.bigbluebutton.main.events.SuccessfulLoginEvent;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.main.model.ConferenceParameters;
 	import org.bigbluebutton.main.model.PortTestProxy;
 	
 	public class ModulesProxy {
-		
+		private static const LOGGER:ILogger = getClassLogger(ModulesProxy);      
+
 		private var modulesManager:ModuleManager;
 		private var portTestProxy:PortTestProxy;
-		
-		private var _user:Object;
-		
 		private var modulesDispatcher:ModulesDispatcher;
 		
+    	private var _user:Object;
+    
 		public function ModulesProxy() {
 			modulesDispatcher = new ModulesDispatcher();
-			portTestProxy = new PortTestProxy();
-			modulesManager = new ModuleManager();
+			portTestProxy = new PortTestProxy(modulesDispatcher);
+			modulesManager = new ModuleManager(modulesDispatcher);
 		}
 		
 		public function get username():String {
@@ -53,7 +48,6 @@ package org.bigbluebutton.main.model.modules
 		}
 						
 		public function loadModule(name:String):void {
-			LogUtil.debug('Loading ' + name);
 			modulesManager.loadModule(name);
 		}
 		
@@ -75,7 +69,7 @@ package org.bigbluebutton.main.model.modules
 		
 		public function testRTMPT(protocol:String):void{
 			if (protocol == "RTMP") portTestProxy.connect("RTMPT", getPortTestHost(), "", getPortTestApplication(), getPortTestTimeout());
-			else modulesDispatcher.sendTunnelingFailedEvent();
+			else modulesDispatcher.sendTunnelingFailedEvent(getPortTestHost(), getPortTestApplication());
 		}
 		
 		public function loadAllModules(params:ConferenceParameters):void{
@@ -86,9 +80,9 @@ package org.bigbluebutton.main.model.modules
 			modulesManager.handleLogout();
 		}
 
-    public function startLayoutModule():void{
-      modulesManager.startLayoutModule();
-    }
+	    public function startLayoutModule():void{
+	      modulesManager.startLayoutModule();
+	    }
     
 		public function startAllModules():void{
 			modulesManager.startAllModules();

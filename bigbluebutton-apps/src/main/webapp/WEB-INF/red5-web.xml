@@ -3,7 +3,7 @@
 
 BigBlueButton open source conferencing system - http://www.bigbluebutton.org/
 
-Copyright (c) 2012 BigBlueButton Inc. and by respective authors (see below).
+Copyright (c) 2015 BigBlueButton Inc. and by respective authors (see below).
 
 This program is free software; you can redistribute it and/or modify it under the
 terms of the GNU Lesser General Public License as published by the Free Software
@@ -19,51 +19,106 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 -->
 <beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xmlns:lang="http://www.springframework.org/schema/lang"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
-                           http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-2.0.xsd">
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:lang="http://www.springframework.org/schema/lang"
+             xsi:schemaLocation="
+                         http://www.springframework.org/schema/beans 
+                         http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+                         http://www.springframework.org/schema/lang 
+                         http://www.springframework.org/schema/lang/spring-lang-2.0.xsd">
 
-	<bean id="placeholderConfig" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-	    <property name="locations">
-	    	<list>
-	    	 	<value>/WEB-INF/red5-web.properties</value>
-	    	 	<value>/WEB-INF/bigbluebutton.properties</value>
-	    	</list>
-	    </property>
-	</bean>
-	
-	<bean id="web.context" class="org.red5.server.Context" autowire="byType" />
-	
-	<bean id="web.scope" class="org.red5.server.scope.WebScope"
-		 init-method="register">
-		<property name="server" ref="red5.server" />
-		<property name="parent" ref="global.scope" />
-		<property name="context" ref="web.context" />
-		<property name="handler" ref="web.handler" />
-		<property name="contextPath" value="${webapp.contextPath}" />
-		<property name="virtualHosts" value="${webapp.virtualHosts}" />
-	</bean>
+    <bean id="placeholderConfig" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+            <property name="locations">
+                <list>
+                    <value>/WEB-INF/red5-web.properties</value>
+                    <value>/WEB-INF/bigbluebutton.properties</value>
+                </list>
+            </property>
+    </bean>
 
-	<bean id="web.handler" class="org.bigbluebutton.conference.BigBlueButtonApplication">
-		<property name="participantsApplication"> <ref bean="participantsApplication"/></property>		
-		<property name="applicationListeners">
-    		<set>
-				<ref bean="participantsHandler" />
-				<ref bean="chatHandler" />
-				<ref bean="layoutHandler" />
-				<ref bean="presentationHandler" />
-				<ref bean="voiceHandler" />
-				<ref bean="whiteboardApplication" />
-    		</set>
-  		</property>	  
-  		<property name="recorderApplication"> <ref bean="recorderApplication"/></property>	
-  		<property name="connInvokerService"> <ref bean="connInvokerService"/></property>		
-	</bean>
-	
-	<bean id="connInvokerService" class="org.bigbluebutton.conference.ConnectionInvokerService"/>
-	
-	<import resource="bbb-apps.xml" />
-	<import resource="bbb-voice-app.xml" />
-  <import resource="bbb-voice-freeswitch.xml" />
+    <bean id="web.context" class="org.red5.server.Context" autowire="byType" />
+
+    <bean id="web.scope" class="org.red5.server.scope.WebScope"
+         init-method="register">
+        <property name="server" ref="red5.server" />
+        <property name="parent" ref="global.scope" />
+        <property name="context" ref="web.context" />
+        <property name="handler" ref="web.handler" />
+        <property name="contextPath" value="${webapp.contextPath}" />
+        <property name="virtualHosts" value="${webapp.virtualHosts}" />
+    </bean>
+
+    <bean id="web.handler" class="org.bigbluebutton.red5.BigBlueButtonApplication">
+        <property name="applicationListeners">
+                <set> <ref bean="whiteboardApplication" /> </set>
+        </property>
+        <property name="connInvokerService"><ref bean="connInvokerService"/></property>
+        <property name="red5Publisher"> <ref bean="red5Publisher"/> </property>
+    </bean>
+
+    <bean id="connInvokerService" class="org.bigbluebutton.red5.client.messaging.ConnectionInvokerService" 
+                init-method="start" destroy-method="stop"/>
+
+    <bean id="layout.service" class="org.bigbluebutton.red5.service.LayoutService">
+        <property name="red5Publisher"> <ref bean="red5Publisher"/></property>
+    </bean> 
+    
+    <bean id="lock.service" class="org.bigbluebutton.red5.service.LockService">
+        <property name="red5Publisher"><ref bean="red5Publisher"/></property>
+    </bean>
+    
+    <bean id="chat.service" class="org.bigbluebutton.red5.service.ChatService">
+        <property name="red5Publisher"> <ref bean="red5Publisher"/></property>
+        <property name="maxMessageLength" value="1024"/>
+    </bean>
+    
+    <bean id="participants.service" class="org.bigbluebutton.red5.service.ParticipantsService">
+        <property name="red5Publisher"> <ref bean="red5Publisher"/> </property>
+    </bean>
+    
+    <bean id="presentationApplication" class="org.bigbluebutton.red5.service.PresentationApplication">
+        <property name="red5Publisher"><ref bean="red5Publisher"/></property>
+    </bean>
+
+    <bean id="presentation.service" class="org.bigbluebutton.red5.service.PresentationService">
+        <property name="presentationApplication"> <ref local="presentationApplication"/></property>
+    </bean>
+    
+    <bean id="whiteboardApplication" class="org.bigbluebutton.red5.service.WhiteboardApplication">
+        <property name="red5Publisher"> <ref bean="red5Publisher"/></property>
+    </bean>
+
+    <bean id="poll.service" class="org.bigbluebutton.red5.service.PollingService">
+        <property name="red5Publisher"> <ref bean="red5Publisher"/></property>
+    </bean>
+    
+    <bean id="whiteboard.service" class="org.bigbluebutton.red5.service.WhiteboardService">
+        <property name="whiteboardApplication"> <ref local="whiteboardApplication"/></property>
+    </bean>
+    
+    <bean id="voice.service" class="org.bigbluebutton.red5.service.VoiceService">
+        <property name="red5Publisher" ref="red5Publisher"/>
+    </bean>
+    
+    <bean id="red5Publisher" class="org.bigbluebutton.red5.pubsub.MessagePublisher">
+        <property name="messageSender" ref="red5RedisSender"/>
+    </bean>
+
+    <bean id="redisPubSubMessageHandler" class="org.bigbluebutton.red5.pubsub.redis.RedisPubSubMessageHandler">
+        <property name="connectionInvokerService"> <ref bean="connInvokerService"/></property>
+        <property name="bbbAppsIsKeepAliveHandler"> <ref bean="bbbAppsIsKeepAliveHandler"/></property>
+    </bean>
+
+    <bean id="bbbAppsIsAliveMonitorService" class="org.bigbluebutton.red5.monitoring.BbbAppsIsAliveMonitorService"
+                init-method="start" destroy-method="stop">
+        <property name="connectionInvokerService"> <ref bean="connInvokerService"/></property>
+        <property name="messageSender" ref="red5RedisSender"/>
+    </bean>
+
+    <bean id="bbbAppsIsKeepAliveHandler" class="org.bigbluebutton.red5.monitoring.BbbAppsIsKeepAliveHandler">
+        <property name="bbbAppsIsAliveMonitorService"> <ref bean="bbbAppsIsAliveMonitorService"/></property>
+    </bean>
+    
+    <import resource="bbb-redis-pool.xml"/>
+    <import resource="bbb-red5-redis-pubsub.xml"/>
 </beans>

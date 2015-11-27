@@ -18,9 +18,12 @@
 */
 package org.bigbluebutton.modules.deskshare.services
 {
-	import com.asfusion.mate.events.Dispatcher;	
-	import flash.net.NetConnection;	
-	import org.bigbluebutton.common.LogUtil;
+	import com.asfusion.mate.events.Dispatcher;
+	
+	import flash.net.NetConnection;
+	
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.modules.deskshare.services.red5.Connection;
 	
 	/**
@@ -30,6 +33,8 @@ package org.bigbluebutton.modules.deskshare.services
 	 */	
 	public class DeskshareService
 	{	
+		private static const LOGGER:ILogger = getClassLogger(DeskshareService);
+
 		private var conn:Connection;
 
 		private var module:DeskShareModule;
@@ -44,15 +49,15 @@ package org.bigbluebutton.modules.deskshare.services
 		}
 		
 		public function handleStartModuleEvent(module:DeskShareModule):void {
-			LogUtil.debug("Deskshare Module starting");
+			LOGGER.debug("Deskshare Module starting");
 			this.module = module;			
 			connect(module.uri, module.getRoom());
 		}
 		
 		public function connect(uri:String, room:String):void {
 			this.uri = uri;
-      this.room = room;
-			trace("Deskshare Service connecting to " + uri);
+      		this.room = room;
+	  		LOGGER.debug("Deskshare Service connecting to {0}", [uri]);
 			conn = new Connection(room);
 
 			conn.setURI(uri);
@@ -75,5 +80,10 @@ package org.bigbluebutton.modules.deskshare.services
     public function sendStartedViewingNotification(stream:String):void{
       conn.sendStartedViewingNotification(stream);
     }
+    
+    public function stopSharingDesktop(meetingId: String, stream: String):void {
+      conn.stopSharingDesktop(meetingId, stream);
+    }
+    
 	}
 }

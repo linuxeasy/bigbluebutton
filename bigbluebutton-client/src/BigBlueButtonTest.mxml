@@ -34,10 +34,9 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			import com.asfusion.mate.events.Dispatcher;
 			
 			import mx.managers.HistoryManager;
+			import mx.managers.IDragManager;
 			
-			import org.bigbluebutton.common.LogUtil;
 			import org.bigbluebutton.main.events.BBBEvent;
-			import org.bigbluebutton.main.views.MainApplicationShell;
 			import org.bigbluebutton.util.i18n.ResourceUtil;
 			
 		private var langResources:ResourceUtil = ResourceUtil.getInstance();
@@ -49,7 +48,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 		 * http://gregjessup.com/flex-3-advanceddatagrid-cannot-convert-mxmanagersdragmanagerimpl-to-mxmanagersidragmanager/
 		 * http://butterfliesandbugs.wordpress.com/2007/10/25/workaround-for-error-when-loading-popups-from-modules/
 		 */
-		import mx.managers.IDragManager; 
 		private var iDragManager:IDragManager;  
 
 		/** another workaround - for this issue: https://bugs.adobe.com/jira/browse/SDK-13121*/
@@ -207,7 +205,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 	<mate:Listener type="{BBBEvent.LOGIN_EVENT}" method="handleLoginEvent"/>
 	<mate:Listener type="{BBBEvent.RECEIVED_PUBLIC_CHAT_MESSAGE_EVENT}" method="handleReceivedPublicChatMessageEvent"/>
 	<mate:Listener type="{BBBEvent.USER_VOICE_JOINED}" method="handleAddedListenerEvent"/>
-	<mate:Listener type="{BBBEvent.PRESENTATION_CONVERTED}" method="handlePresentationConversion"/>
 	<mate:Listener type="{BBBEvent.VIDEO_STARTED}" method="videoHasStarted"/>
 	
 </mx:Application>

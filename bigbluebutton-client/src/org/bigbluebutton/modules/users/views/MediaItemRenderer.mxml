@@ -31,25 +31,17 @@
 	
 	<mx:Script>
 		<![CDATA[
-			import com.asfusion.mate.events.Dispatcher;
-			
 			import mx.binding.utils.BindingUtils;
-			import mx.controls.Alert;
 			import mx.events.FlexEvent;
-			import mx.events.ListEvent;
 			
 			import org.bigbluebutton.common.Images;
-			import org.bigbluebutton.common.LogUtil;
 			import org.bigbluebutton.common.Role;
 			import org.bigbluebutton.core.events.LockControlEvent;
 			import org.bigbluebutton.core.events.VoiceConfEvent;
 			import org.bigbluebutton.core.managers.UserManager;
-			import org.bigbluebutton.main.events.BBBEvent;
-			import org.bigbluebutton.main.events.StoppedViewingWebcamEvent;
+			import org.bigbluebutton.core.vo.LockSettingsVO;
 			import org.bigbluebutton.main.model.users.BBBUser;
-			import org.bigbluebutton.main.model.users.Conference;
 			import org.bigbluebutton.main.model.users.events.KickUserEvent;
-			import org.bigbluebutton.main.model.users.events.LowerHandEvent;
 			import org.bigbluebutton.modules.users.events.UsersRollEvent;
 			import org.bigbluebutton.modules.users.events.ViewCameraEvent;
 			import org.bigbluebutton.modules.users.model.UsersOptions;
@@ -75,11 +67,12 @@
 				
 				this.addEventListener(FlexEvent.DATA_CHANGE, dataChangeHandler);
 				
+        BindingUtils.bindSetter(updateButtons, listenOnlyInd, "visible");
 				BindingUtils.bindSetter(updateButtons, voiceJoinedInd, "visible");
 				BindingUtils.bindSetter(updateButtons, muteInd, "visible");
 				BindingUtils.bindSetter(updateButtons, userLockedInd, "visible");
 				BindingUtils.bindSetter(updateButtons, hasStreamInd, "visible");
-                BindingUtils.bindSetter(updateButtons, viewingStreamInd, "visible");
+        BindingUtils.bindSetter(updateButtons, viewingStreamInd, "visible");
                 
 				options = new UsersOptions();
 			}
@@ -99,7 +92,7 @@
 			}
 			
 			private function onRollOut(e:UsersRollEvent):void{
-				if (moderator && (e.userID == data.userID)) {
+				if (moderator && rolledOver) {
 					rolledOver = false;
 					updateButtons();
 				}
@@ -135,7 +128,7 @@
 			
 			private function toggleMuteState():void {
 				var e:VoiceConfEvent = new VoiceConfEvent(VoiceConfEvent.MUTE_USER);
-				e.userid = data.voiceUserid;
+				e.userid = data.userID;
 				e.mute = !data.voiceMuted;
 				dispatchEvent(e);
 			}
@@ -154,17 +147,29 @@
 			}
 			
 			private function updateButtons(voiceMuted:Boolean = false):void {
+				// reset the mute image filter so the talking indicator doesn't stick
+				muteImg.filters = null;
+				
+				var ls:LockSettingsVO = UserManager.getInstance().getConference().getLockSettings();
+				
 				if (data != null) {
 					kickUserBtn.visible = !data.me && rolledOver && options.allowKickUser;
 					
-					
 					if (!data.voiceJoined) {
-						muteImg.visible = false;
-						muteImg.includeInLayout = false;
-						muteBtn.visible = false;
-						muteBtn.includeInLayout = true;
+						if (data.listenOnly) {
+							muteImg.source = images.sound;
+							muteImg.visible = true;
+							muteImg.includeInLayout = true;
+							muteBtn.visible = false;
+							muteBtn.includeInLayout = false;             
+						} else {
+							muteImg.visible = false;
+							muteImg.includeInLayout = false;
+							muteBtn.visible = false;
+							muteBtn.includeInLayout = true;
+						}
 					} else {
-						if(data.userLocked && UserManager.getInstance().getConference().getLockSettings().getDisableMic()) {
+						if (data.userLocked && ls.getDisableMic()) {
 							muteImg.visible = true;
 							muteImg.includeInLayout = true;
 							muteBtn.visible = false;
@@ -176,7 +181,7 @@
 							muteBtn.includeInLayout = rolledOver;
 							
 							if(data.talking && !rolledOver){
-								muteImg.filters = [new GlowFilter(0x898989)];
+								muteImg.filters = [new GlowFilter(0x000000, 1, 6, 6, 2, BitmapFilterQuality.HIGH, false, false)];
 							}else{
 								muteImg.filters = [];
 							}
@@ -184,12 +189,7 @@
 					}
 					
 					//If it's not a moderator, it always can be locked.
-					//If it's a moderator and moderator locking is eanbled, it can be locked
-					//If it's a moderator and moderator locking is disabeld, it can be unlocked
-					if(	data.role != BBBUser.MODERATOR 
-						|| (data.role == BBBUser.MODERATOR && UserManager.getInstance().getConference().getLockSettings().getAllowModeratorLocking())
-						|| (data.role == BBBUser.MODERATOR && !UserManager.getInstance().getConference().getLockSettings().getAllowModeratorLocking() && data.userLocked == true)
-					){
+					if(	data.role != BBBUser.MODERATOR && ls.isAnythingLocked() ){
 						lockImg.visible = !rolledOver;
 						lockImg.includeInLayout = !rolledOver;
 						lockBtn.visible = rolledOver;
@@ -202,37 +202,43 @@
 						lockBtn.includeInLayout = false;
 					}
 					
-                    if (data.hasStream) {
-                        if (data.viewingStream || data.me) {
-                            webcamImg.visible = true;
-                            webcamImg.includeInLayout = true;
-                            webcamBtn.visible = false;
-                            webcamBtn.includeInLayout = false;
-                        } else {
-                            webcamImg.visible = false;
-                            webcamImg.includeInLayout = false;
-                            webcamBtn.visible = true;
-                            webcamBtn.includeInLayout = true;
-                        }
-                    } else {
-                        webcamImg.visible = false;
-                        webcamImg.includeInLayout = true;
-                        webcamBtn.visible = false;
-                        webcamBtn.includeInLayout = false;
-                    }
-                    
+					if (data.hasStream) {
+						// if it's myself or if I'm watching all the streams from the given user, then don't activate the button
+						if (data.me || data.isViewingAllStreams()) {
+							webcamImg.visible = true;
+							webcamImg.includeInLayout = true;
+							webcamBtn.visible = false;
+							webcamBtn.includeInLayout = false;
+						} else {
+							webcamImg.visible = false;
+							webcamImg.includeInLayout = false;
+							webcamBtn.visible = true;
+							webcamBtn.includeInLayout = true;
+						}
+					} else {
+						webcamImg.visible = false;
+						webcamImg.includeInLayout = true;
+						webcamBtn.visible = false;
+						webcamBtn.includeInLayout = false;
+					}
+
 					if (!rolledOver) {
-						if (data.voiceMuted)
-							muteImg.source = images.audio_muted_20;
-						else
-							muteImg.source = images.audio_20;
+						if (!data.voiceJoined && data.listenOnly) {
+							muteImg.source = images.sound;
+						} else {
+							if (data.voiceMuted)
+								muteImg.source = images.audio_muted_20;
+							else
+								muteImg.source = images.audio_20;              
+						}
 						
-						if (data.userLocked)
+						
+						if ( data.userLocked && !data.presenter && ls.isAnythingLocked() ) {
 							lockImg.source = images.locked_20;
-						//else if (moderator)
-						//	lockImg.source = images.unlocked_20;
-						else
+						}
+						else {
 							lockImg.source = null;
+						}
 					} else {
 						if (data.voiceMuted == rolledOverMute)
 							muteBtn.setStyle("icon", images.audio);
@@ -278,6 +284,7 @@
 	<mx:Image id="muteInd" includeInLayout="false" visible="{data.voiceMuted}" />
 	<mx:Image id="voiceJoinedInd" includeInLayout="false" visible="{data.voiceJoined}" />
 	<mx:Image id="userLockedInd" includeInLayout="false" visible="{data.userLocked}" />
-    <mx:Image id="hasStreamInd" includeInLayout="false" visible="{data.hasStream}" />
-    <mx:Image id="viewingStreamInd" includeInLayout="false" visible="{data.viewingStream}" />
+  <mx:Image id="hasStreamInd" includeInLayout="false" visible="{data.hasStream}" />
+  <mx:Image id="viewingStreamInd" includeInLayout="false" visible="{data.viewingStream}" />
+  <mx:Image id="listenOnlyInd" includeInLayout="false" visible="{data.listenOnly}" />
 </mx:HBox>

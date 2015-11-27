@@ -20,9 +20,10 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 
 -->
 
-<MDIWindow xmlns="flexlib.mdi.containers.*" 
+<CustomMdiWindow xmlns="org.bigbluebutton.common.*" 
 	       xmlns:mx="http://www.adobe.com/2006/mxml" 
-	       showCloseButton="true"
+		   xmlns:common="org.bigbluebutton.common.*"
+		   showCloseButton="true"
 		   initialize="init()"
 	       creationComplete="onCreationComplete()"
 		   xmlns:mate="http://mate.asfusion.com/" 
@@ -33,16 +34,17 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 	
 	<mx:Script>
 		<![CDATA[
-			import flash.events.Event;
 			import com.asfusion.mate.events.Dispatcher;
-			import flexlib.mdi.events.MDIWindowEvent;
 			
-			import flexlib.controls.textClasses.StringBoundaries;
+			import flash.events.MouseEvent;
 			
 			import mx.collections.ArrayCollection;
 			import mx.collections.ArrayList;
 			
-			import org.bigbluebutton.common.LogUtil;
+			import flexlib.mdi.events.MDIWindowEvent;
+			
+			import org.as3commons.logging.api.ILogger;
+			import org.as3commons.logging.api.getClassLogger;
 			import org.bigbluebutton.common.events.LocaleChangeEvent;
 			import org.bigbluebutton.main.events.ShortcutEvent;
 			import org.bigbluebutton.main.model.ShortcutOptions;
@@ -52,15 +54,13 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			private var presKeys:ArrayList;
 			private var chatKeys:ArrayList;
 			private var userKeys:ArrayList;
-			private var pollKeys:ArrayList;
-			private var pollVoteKeys:ArrayList;
 			
+			private static const LOGGER:ILogger = getClassLogger(ShortcutHelpWindow);      
+
 			[Bindable] private var generalString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.general");
 			[Bindable] private var presentationString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.presentation");
 			[Bindable] private var chatString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.chat");
 			[Bindable] private var userString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.users");
-			[Bindable] private var pollString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.polling");
-			[Bindable] private var pollVoteString:String = ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.polling2");
 						
 			private var presResource:Array = ['bbb.shortcutkey.present.focusslide', /*'bbb.shortcutkey.whiteboard.undo',*/ 'bbb.shortcutkey.present.upload',  
 											  'bbb.shortcutkey.present.previous', 'bbb.shortcutkey.present.select', 'bbb.shortcutkey.present.next', 	
@@ -74,20 +74,8 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			private var userResource:Array = ['bbb.shortcutkey.users.focusUsers', 'bbb.shortcutkey.users.makePresenter', 'bbb.shortcutkey.users.mute', 
 											  /*'bbb.shortcutkey.users.kick',*/ 'bbb.shortcutkey.users.muteall'];
 			
-			private var pollResource:Array = ['bbb.shortcutkey.polling.focusTitle', 'bbb.shortcutkey.polling.focusQuestion', 'bbb.shortcutkey.polling.focusAnswers', 
-											  'bbb.shortcutkey.polling.focusMultipleCB', 'bbb.shortcutkey.polling.focusWebPollCB', 'bbb.shortcutkey.polling.previewClick', 
-											  'bbb.shortcutkey.polling.cancelClick', 'bbb.shortcutkey.polling.modify', 'bbb.shortcutkey.polling.publish', 
-											  'bbb.shortcutkey.polling.save', 'bbb.shortcutkey.pollStats.explanation', 'bbb.shortcutkey.polling.focusWebPoll', 
-											  'bbb.shortcutkey.polling.focusData', 'bbb.shortcutkey.polling.refresh', 'bbb.shortcutkey.polling.stopPoll', 
-											  'bbb.shortcutkey.polling.repostPoll', 'bbb.shortcutkey.polling.closeStatsWindow'];
-			
-			private var pollVoteResource:Array = ['bbb.shortcutkey.polling.focusVoteQuestion', 'bbb.shortcutkey.polling.vote'];
-			
 			[Bindable]
 			private var shownKeys:ArrayCollection;
-			
-			[Bindable]
-			private var baseIndex:int = 100;
 			
 			private var modifier:String;
 			private var globalModifier:String;
@@ -100,11 +88,7 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			
 			private function onCreationComplete():void {
 				localeChanged();
-				titleBarOverlay.tabIndex = baseIndex;
-				
-				minimizeBtn.tabIndex = baseIndex + 1;
-				maximizeRestoreBtn.tabIndex = baseIndex + 2;
-				closeBtn.tabIndex = baseIndex + 3;
+				titleBarOverlay.tabIndex = headerIndexer.startIndex - 1;
 			}
 			
 			private function populateModules():void{
@@ -117,11 +101,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				
 				if (ShortcutOptions.chatActive)
 					categoryAC.addItem(chatString);
-				
-				if (ShortcutOptions.pollingActive){
-					categoryAC.addItem(pollString);
-					categoryAC.addItem(pollVoteString);
-				}
 			}
 			
 			private function reloadKeys():void {
@@ -129,8 +108,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				presKeys = loadKeys(presResource);
 				chatKeys = loadKeys(chatResource);
 				userKeys = loadKeys(userResource);
-				pollKeys = loadKeys(pollResource);
-				pollVoteKeys = loadKeys(pollVoteResource);
 				
 				changeArray();
 			}
@@ -156,12 +133,6 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 					break;
 					case categoryAC.getItemIndex(userString): //Users
 					shownKeys.addAll(userKeys);
-					break;
-					case categoryAC.getItemIndex(pollString): //Polling, Presenter
-					shownKeys.addAll(pollKeys);
-					break;
-					case categoryAC.getItemIndex(pollVoteString): //Polling, Viewer
-					shownKeys.addAll(pollVoteKeys);
 					break;
 				}
 			}
@@ -261,32 +232,32 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			}
 			
 			public function focusButton(e:MDIWindowEvent):void{
-				LogUtil.debug("Caught close event from window");
+				LOGGER.debug("Caught close event from window");
 				var dispatcher:Dispatcher = new Dispatcher();
 				dispatcher.dispatchEvent(new ShortcutEvent(ShortcutEvent.FOCUS_SHORTCUT_BUTTON));
 			}
 		]]>
 	</mx:Script>
 	
+	<common:TabIndexer id="headerIndexer" startIndex="101" tabIndices="{[minimizeBtn, maximizeRestoreBtn, closeBtn]}"/>
+	<common:TabIndexer startIndex="115" tabIndices="{[categories, keyList]}"/>
+
 	<mx:ComboBox id="categories" labelField="Please select an area for which to view shortcut keys: " 
 				 editable="false" 
-				 change="changeArray()"
-				 tabIndex="{baseIndex + 10}">
+				 change="changeArray()">
 		<mx:ArrayCollection id="categoryAC">
         	<!--
 			<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.general")}</mx:String>
          	<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.presentation")}</mx:String>
          	<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.chat")}</mx:String>
          	<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.users")}</mx:String>
-			<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.polling")}</mx:String>
-			<mx:String>{ResourceUtil.getInstance().getString("bbb.shortcuthelp.dropdown.polling2")}</mx:String>
 			-->
       	</mx:ArrayCollection>
 	</mx:ComboBox>
-	<mx:DataGrid id="keyList" draggableColumns="false" dataProvider="{shownKeys}" width="100%" height="100%" tabIndex="{baseIndex + 15}" >
+	<mx:DataGrid id="keyList" draggableColumns="false" dataProvider="{shownKeys}" width="100%" height="100%">
 		<mx:columns>
 			<mx:DataGridColumn dataField="shortcut" headerText="{ResourceUtil.getInstance().getString('bbb.shortcuthelp.headers.shortcut')}"/>
 			<mx:DataGridColumn dataField="func" headerText="{ResourceUtil.getInstance().getString('bbb.shortcuthelp.headers.function')}"/>
 		</mx:columns>
 	</mx:DataGrid>
-</MDIWindow>
+</CustomMdiWindow>

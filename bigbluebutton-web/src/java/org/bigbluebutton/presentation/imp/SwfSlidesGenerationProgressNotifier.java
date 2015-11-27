@@ -44,10 +44,8 @@ public class SwfSlidesGenerationProgressNotifier {
 	private void notifyProgressListener(Map<String, Object> msg) {	
 		if(messagingService != null){
 			Gson gson= new Gson();
-			String updateMsg=gson.toJson(msg);
-			log.debug("SENDING: " + updateMsg);
-			messagingService.send(MessagingConstants.PRESENTATION_CHANNEL, updateMsg);
-			log.debug("SENT: " + updateMsg);
+			String updateMsg = gson.toJson(msg);
+			messagingService.send(MessagingConstants.TO_PRESENTATION_CHANNEL, updateMsg);
 		} else {
 			log.warn("MessagingService has not been set");
 		}
@@ -77,11 +75,10 @@ public class SwfSlidesGenerationProgressNotifier {
 			return;
 		}
 		
-		String xml = generatedSlidesInfoHelper.generateUploadedPresentationInfo(pres);
-		String escape_xml = StringEscapeUtils.escapeXml(xml);
 		MessageBuilder builder = new ConversionUpdateMessage.MessageBuilder(pres);
-		builder.messageKey(ConversionMessageConstants.CONVERSION_COMPLETED_KEY);
-		builder.slidesInfo(escape_xml);
+		builder.messageKey(ConversionMessageConstants.CONVERSION_COMPLETED_KEY);		
+		builder.numberOfPages(pres.getNumberOfPages());
+		builder.presBaseUrl(pres);
 		notifyProgressListener(builder.build().getMessage());	
 	}
 	
@@ -97,5 +94,11 @@ public class SwfSlidesGenerationProgressNotifier {
 		MessageBuilder builder = new ConversionUpdateMessage.MessageBuilder(pres);
 		builder.messageKey(ConversionMessageConstants.GENERATING_TEXTFILES_KEY);
 		notifyProgressListener(builder.build().getMessage());	
+	}
+
+	public void sendCreatingSvgImagesUpdateMessage(UploadedPresentation pres) {
+		MessageBuilder builder = new ConversionUpdateMessage.MessageBuilder(pres);
+		builder.messageKey(ConversionMessageConstants.GENERATING_SVGIMAGES_KEY);
+		notifyProgressListener(builder.build().getMessage());
 	}
 }

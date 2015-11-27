@@ -339,8 +339,6 @@ module BigBlueButton
         else
           edl_entry[:duration] = edl[i+1][:timestamp] - edl_entry[:timestamp]
         end
-        # the original_duration is used to calculate the speed of the output file
-        edl_entry[:original_duration] = edl_entry[:duration]
       end
 
       BigBlueButton.logger.debug "edl with duration:\n#{BigBlueButton.hash_to_str(edl)}"
@@ -400,6 +398,7 @@ module BigBlueButton
       s = text.to_s
       s.gsub!( generic_URL_regexp, '\1<a href="\2">\2</a>' )
       s.gsub!( starts_with_www_regexp, '\1<a href="http://\2">\2</a>' )
+      s.gsub!('href="event:', 'href="')
       s
     end
 
@@ -443,5 +442,60 @@ module BigBlueButton
       end
       matched_rec_events
     end
+
+    # Version of the bbb server where it was recorded
+    def self.bbb_version(events_xml)
+      events = Nokogiri::XML(File.open(events_xml))      
+      recording = events.at_xpath('/recording')
+      recording['bbb_version']      
+    end
+
+    # Compare version numbers
+    # Returns true if version is newer than requested version
+    def self.bbb_version_compare(events_xml, major, minor=nil, micro=nil)
+      bbb_version = self.bbb_version(events_xml)
+      if bbb_version.nil?
+        # BigBlueButton 0.81 or earler
+        return false
+      end
+
+      # Split the version string
+      match = /^(\d+)\.(\d+)\.(\d+)/.match(bbb_version)
+      if !match
+        raise "bbb_version #{bbb_version} is not in the correct format"
+      end
+
+      # Check major version mismatch
+      if match[1].to_i > major
+        return true
+      end
+      if match[1].to_i < major
+        return false
+      end
+
+      # Check minor version mismatch
+      if minor.nil?
+        return true
+      else
+        if match[2].to_i > minor
+          return true
+        end
+        if match[2].to_i < minor
+          return false
+        end
+      end
+
+      # Check micro version mismatch
+      if micro.nil?
+        return true
+      else
+        if match[3].to_i >= micro
+          return true
+        else
+          return false
+        end
+      end
+    end
+
   end
 end

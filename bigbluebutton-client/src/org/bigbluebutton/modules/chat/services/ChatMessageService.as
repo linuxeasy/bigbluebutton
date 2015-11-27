@@ -19,28 +19,34 @@
 package org.bigbluebutton.modules.chat.services
 {
   import flash.events.IEventDispatcher;
+  import flash.external.ExternalInterface;
   
-  import org.bigbluebutton.common.LogUtil;
+  import org.as3commons.logging.api.ILogger;
+  import org.as3commons.logging.api.getClassLogger;
   import org.bigbluebutton.core.BBB;
+  import org.bigbluebutton.core.UsersUtil;
+  import org.bigbluebutton.core.model.MeetingModel;
   import org.bigbluebutton.modules.chat.ChatConstants;
   import org.bigbluebutton.modules.chat.events.PublicChatMessageEvent;
   import org.bigbluebutton.modules.chat.vo.ChatMessageVO;
+  import org.bigbluebutton.util.i18n.ResourceUtil;
 
   public class ChatMessageService
   {
+	private static const LOGGER:ILogger = getClassLogger(ChatMessageService);      
+    
     public var sender:MessageSender;
     public var receiver:MessageReceiver;
     public var dispatcher:IEventDispatcher;
     
     public function sendPublicMessageFromApi(message:Object):void
     {
-      LogUtil.debug("sendPublicMessageFromApi");
+      LOGGER.debug("sendPublicMessageFromApi");
       var msgVO:ChatMessageVO = new ChatMessageVO();
       msgVO.chatType = ChatConstants.PUBLIC_CHAT;
       msgVO.fromUserID = message.fromUserID;
       msgVO.fromUsername = message.fromUsername;
       msgVO.fromColor = message.fromColor;
-      msgVO.fromLang = message.fromLang;
       msgVO.fromTime = message.fromTime;
       msgVO.fromTimezoneOffset = message.fromTimezoneOffset;
 
@@ -51,12 +57,12 @@ package org.bigbluebutton.modules.chat.services
     
     public function sendPrivateMessageFromApi(message:Object):void
     {
+	  LOGGER.debug("sendPrivateMessageFromApi");
       var msgVO:ChatMessageVO = new ChatMessageVO();
       msgVO.chatType = ChatConstants.PUBLIC_CHAT;
       msgVO.fromUserID = message.fromUserID;
       msgVO.fromUsername = message.fromUsername;
       msgVO.fromColor = message.fromColor;
-      msgVO.fromLang = message.fromLang;
       msgVO.fromTime = message.fromTime;
       msgVO.fromTimezoneOffset = message.fromTimezoneOffset;
       
@@ -69,42 +75,63 @@ package org.bigbluebutton.modules.chat.services
 
     }
     
-    public function sendPublicMessage(message:ChatMessageVO):void
-    {
+    public function sendPublicMessage(message:ChatMessageVO):void {
       sender.sendPublicMessage(message);
     }
     
-    public function sendPrivateMessage(message:ChatMessageVO):void
-    {
+    public function sendPrivateMessage(message:ChatMessageVO):void {
       sender.sendPrivateMessage(message);
     }
     
-    public function getPublicChatMessages():void
-    {
+    public function getPublicChatMessages():void {
       sender.getPublicChatMessages();
     }
     
     private static const SPACE:String = " ";
     
     public function sendWelcomeMessage():void {
+	  LOGGER.debug("sendWelcomeMessage");
       var welcome:String = BBB.initUserConfigManager().getWelcomeMessage();
-      if (welcome != "") {              
-        var msg:ChatMessageVO = new ChatMessageVO();
-        msg.chatType = ChatConstants.PUBLIC_CHAT;
-        msg.fromUserID = SPACE;
-        msg.fromUsername = SPACE;
-        msg.fromColor = "86187";
-        msg.fromLang = "en";
-        msg.fromTime = new Date().getTime();
-        msg.fromTimezoneOffset = new Date().getTimezoneOffset();
-        msg.toUserID = SPACE;
-        msg.toUsername = SPACE;
-        msg.message = welcome;
+      if (welcome != "") {
+        var welcomeMsg:ChatMessageVO = new ChatMessageVO();
+        welcomeMsg.chatType = ChatConstants.PUBLIC_CHAT;
+        welcomeMsg.fromUserID = SPACE;
+        welcomeMsg.fromUsername = SPACE;
+        welcomeMsg.fromColor = "86187";
+        welcomeMsg.fromTime = new Date().getTime();
+        welcomeMsg.fromTimezoneOffset = new Date().getTimezoneOffset();
+        welcomeMsg.toUserID = SPACE;
+        welcomeMsg.toUsername = SPACE;
+        welcomeMsg.message = welcome;
         
-        var pcEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
-        pcEvent.message = msg;
-        dispatcher.dispatchEvent(pcEvent);
+        var welcomeMsgEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
+        welcomeMsgEvent.message = welcomeMsg;
+        welcomeMsgEvent.history = false;
+        dispatcher.dispatchEvent(welcomeMsgEvent);
+        
+        //Say that client is ready when sending the welcome message
+        ExternalInterface.call("clientReady", ResourceUtil.getInstance().getString('bbb.accessibility.clientReady'));
       }	
+      
+      if (UsersUtil.amIModerator()) {
+        if (MeetingModel.getInstance().modOnlyMessage != null) {
+          var moderatorOnlyMsg:ChatMessageVO = new ChatMessageVO();
+          moderatorOnlyMsg.chatType = ChatConstants.PUBLIC_CHAT;
+          moderatorOnlyMsg.fromUserID = SPACE;
+          moderatorOnlyMsg.fromUsername = SPACE;
+          moderatorOnlyMsg.fromColor = "86187";
+          moderatorOnlyMsg.fromTime = new Date().getTime();
+          moderatorOnlyMsg.fromTimezoneOffset = new Date().getTimezoneOffset();
+          moderatorOnlyMsg.toUserID = SPACE;
+          moderatorOnlyMsg.toUsername = SPACE;
+          moderatorOnlyMsg.message = MeetingModel.getInstance().modOnlyMessage;
+          
+          var moderatorOnlyMsgEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
+          moderatorOnlyMsgEvent.message = moderatorOnlyMsg;
+          moderatorOnlyMsgEvent.history = false;
+          dispatcher.dispatchEvent(moderatorOnlyMsgEvent);
+        }
+      }
     }
   }
 }

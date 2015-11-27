@@ -19,46 +19,25 @@
 package org.bigbluebutton.modules.whiteboard
 {
   import flash.display.DisplayObject;
-  import flash.display.Shape;
-  import flash.display.Sprite;
   import flash.events.Event;
   import flash.events.FocusEvent;
   import flash.events.KeyboardEvent;
-  import flash.events.MouseEvent;
-  import flash.events.TextEvent;
-  import flash.geom.Point;
-  import flash.text.TextField;
-  import flash.text.TextFieldAutoSize;
-  import flash.text.TextFieldType;
-  import flash.text.TextFormat;
   import flash.ui.Keyboard;
   
-  import mx.collections.ArrayCollection;
-  import mx.controls.TextInput;
-  import mx.core.Application;
-  import mx.core.UIComponent;
-  import mx.managers.CursorManager;
-  
+  import org.as3commons.logging.api.ILogger;
+  import org.as3commons.logging.api.getClassLogger;
   import org.bigbluebutton.common.IBbbCanvas;
-  import org.bigbluebutton.common.LogUtil;
   import org.bigbluebutton.core.managers.UserManager;
   import org.bigbluebutton.main.events.MadePresenterEvent;
   import org.bigbluebutton.modules.present.events.NavigationEvent;
-  import org.bigbluebutton.modules.whiteboard.business.shapes.DrawGrid;
   import org.bigbluebutton.modules.whiteboard.business.shapes.DrawObject;
   import org.bigbluebutton.modules.whiteboard.business.shapes.GraphicFactory;
   import org.bigbluebutton.modules.whiteboard.business.shapes.GraphicObject;
-  import org.bigbluebutton.modules.whiteboard.business.shapes.Pencil;
   import org.bigbluebutton.modules.whiteboard.business.shapes.ShapeFactory;
-  import org.bigbluebutton.modules.whiteboard.business.shapes.TextDrawAnnotation;
-  import org.bigbluebutton.modules.whiteboard.business.shapes.TextDrawObject;
   import org.bigbluebutton.modules.whiteboard.business.shapes.TextObject;
   import org.bigbluebutton.modules.whiteboard.business.shapes.WhiteboardConstants;
   import org.bigbluebutton.modules.whiteboard.events.GraphicObjectFocusEvent;
-  import org.bigbluebutton.modules.whiteboard.events.PageEvent;
-  import org.bigbluebutton.modules.whiteboard.events.ToggleGridEvent;
   import org.bigbluebutton.modules.whiteboard.events.WhiteboardDrawEvent;
-  import org.bigbluebutton.modules.whiteboard.events.WhiteboardSettingResetEvent;
   import org.bigbluebutton.modules.whiteboard.events.WhiteboardUpdate;
   import org.bigbluebutton.modules.whiteboard.models.Annotation;
   import org.bigbluebutton.modules.whiteboard.models.WhiteboardModel;
@@ -68,6 +47,8 @@ package org.bigbluebutton.modules.whiteboard
     * Class to handle displaying of received annotations from the server.
     */
   public class WhiteboardCanvasDisplayModel {
+	private static const LOGGER:ILogger = getClassLogger(WhiteboardCanvasDisplayModel);
+    
     public var whiteboardModel:WhiteboardModel;
     public var wbCanvas:WhiteboardCanvas;  
     private var _annotationsList:Array = new Array();
@@ -81,15 +62,19 @@ package org.bigbluebutton.modules.whiteboard
 	private var zoomPercentage:Number = 1;
 	
     public function doMouseDown(mouseX:Number, mouseY:Number):void {
+      publishText();
+    }
+    
+    private function publishText():void {
       /**
-        * Check if the presenter is starting a new text annotation without committing the last one.
-        * If so, publish the last text annotation. 
-        */
+       * Check if the presenter is starting a new text annotation without committing the last one.
+       * If so, publish the last text annotation. 
+       */
       if (currentlySelectedTextObject != null && currentlySelectedTextObject.status != TextObject.TEXT_PUBLISHED) {
         sendTextToServer(TextObject.TEXT_PUBLISHED, currentlySelectedTextObject);
       }
     }
-        
+    
     public function drawGraphic(event:WhiteboardUpdate):void{
       var o:Annotation = event.annotation;
       //  LogUtil.debug("**** Drawing graphic [" + o.type + "] *****");
@@ -107,12 +92,11 @@ package org.bigbluebutton.modules.whiteboard
           case DrawObject.DRAW_UPDATE:
           case DrawObject.DRAW_END:
             if (_annotationsList.length > 0) {
-              var gobj:DrawObject = _annotationsList.pop();  
+              var gobj:Object = _annotationsList.pop();
               if (gobj.id == o.id) {
-                //              LogUtil.debug("Removing shape [" + gobj.id + "]");
+                // LogUtil.debug("Removing shape [" + gobj.id + "]");
                 wbCanvas.removeGraphic(gobj as DisplayObject);
               } else { // no DRAW_START event was thrown for o so place gobj back on the top
-                LogUtil.debug("Not removing shape [" + gobj.id + "] new [" + o.id + "]");
                 _annotationsList.push(gobj);
               }              
             }
@@ -181,6 +165,9 @@ package org.bigbluebutton.modules.whiteboard
       }
       
       tobj.registerListeners(textObjGainedFocusListener, textObjLostFocusListener, textObjTextChangeListener, textObjSpecialListener);
+      
+      tobj._whiteboardID = whiteboardModel.getCurrentWhiteboardId();
+      
       wbCanvas.addGraphic(tobj);
       wbCanvas.stage.focus = tobj;
             _annotationsList.push(tobj);
@@ -205,10 +192,12 @@ package org.bigbluebutton.modules.whiteboard
     
     private function removeText(id:String):void {
       var tobjData:Array = getGobjInfoWithID(id);
-      var removeIndex:int = tobjData[0];
-      var tobjToRemove:TextObject = tobjData[1] as TextObject;
-      wbCanvas.removeGraphic(tobjToRemove);
-            _annotationsList.splice(removeIndex, 1);
+      if (tobjData != null) {
+        var removeIndex:int = tobjData[0];
+        var tobjToRemove:TextObject = tobjData[1] as TextObject;
+        wbCanvas.removeGraphic(tobjToRemove);
+        _annotationsList.splice(removeIndex, 1);
+      }
     }  
     
     /* method to modify a TextObject that is already present on the whiteboard, as opposed to adding a new TextObject to the whiteboard */
@@ -290,42 +279,40 @@ package org.bigbluebutton.modules.whiteboard
       for (var i:Number = 0; i < numGraphics; i++){
         removeLastGraphic();
       }
+      wbCanvas.textToolbar.visible = false;
     }
     
     public function undoAnnotation(id:String):void {
-            /** We'll just remove the last annotation for now **/
+      /** We'll just remove the last annotation for now **/
       if (this._annotationsList.length > 0) {
         removeLastGraphic();
       }
     }
         
-        public function receivedAnnotationsHistory():void {
-//            LogUtil.debug("**** CanvasDisplay receivedAnnotationsHistory *****");
-            var annotations:Array = whiteboardModel.getAnnotations();
-//            LogUtil.debug("**** CanvasDisplay receivedAnnotationsHistory [" + annotations.length + "] *****");
-            for (var i:int = 0; i < annotations.length; i++) {
-                var an:Annotation = annotations[i] as Annotation;
-//                LogUtil.debug("**** Drawing graphic from history [" + an.type + "] *****");
-                if(an.type != DrawObject.TEXT) {
-                    var dobj:DrawObject = shapeFactory.makeDrawObject(an, whiteboardModel);  
-                    if (dobj != null) {
-                        dobj.draw(an, shapeFactory.parentWidth, shapeFactory.parentHeight, zoomPercentage);
-                        wbCanvas.addGraphic(dobj);
-                        _annotationsList.push(dobj);              
-                    }        
-                } else { 
-                    if (an.annotation.text != "") {
-                        addNormalText(an);     
-                    }
-                }             
-            }
+    public function receivedAnnotationsHistory(wbId:String):void {
+      var annotations:Array = whiteboardModel.getAnnotations(wbId);
+      for (var i:int = 0; i < annotations.length; i++) {
+        var an:Annotation = annotations[i] as Annotation;
+        if ( an.type != DrawObject.TEXT) {
+           var dobj:DrawObject = shapeFactory.makeDrawObject(an, whiteboardModel);  
+           if (dobj != null) {
+              dobj.draw(an, shapeFactory.parentWidth, shapeFactory.parentHeight, zoomPercentage);
+              wbCanvas.addGraphic(dobj);
+              _annotationsList.push(dobj);              
+           }        
+        } else { 
+          if (an.annotation.text != "") {
+              addNormalText(an);     
+          }
+        }             
+      }
             
-            if (_annotationsList.length > 0) {
-                for (var ij:int = 0; ij < this._annotationsList.length; ij++){
-                    redrawGraphic(this._annotationsList[ij] as GraphicObject, ij);
-                }                
-            }
+      if (_annotationsList.length > 0) {
+        for (var ij:int = 0; ij < this._annotationsList.length; ij++){
+          redrawGraphic(this._annotationsList[ij] as GraphicObject, ij);
+        }                
         }
+      }
 
         /*********************************************************
         * HACK! HACK! HACK! HACK! HACK! HACK! HACK! HACK! HACK! 
@@ -349,11 +336,13 @@ package org.bigbluebutton.modules.whiteboard
         
         /**********************************************************/
         
-    public function changePage():void{
+        public function changePage(wbId:String):void{
+            publishText();
+            
 //            LogUtil.debug("**** CanvasDisplay changePage. Clearing page *****");
             clearBoard();
             
-            var annotations:Array = whiteboardModel.getAnnotations();
+            var annotations:Array = whiteboardModel.getAnnotations(wbId);
 //            LogUtil.debug("**** CanvasDisplay changePage [" + annotations.length + "] *****");
             if (annotations.length == 0) {
                 /***
@@ -361,7 +350,7 @@ package org.bigbluebutton.modules.whiteboard
                 * If not, don't query for history. The overlay canvas event will trigger the querying of
                 * the history.
                 */
-                if (wbCanvasInitialized) wbCanvas.queryForAnnotationHistory();
+                if (wbCanvasInitialized) wbCanvas.queryForAnnotationHistory(wbId);
             } else {
                 for (var i:int = 0; i < annotations.length; i++) {
                     var an:Annotation = annotations[i] as Annotation;
@@ -385,14 +374,15 @@ package org.bigbluebutton.modules.whiteboard
         }
     
     public function zoomCanvas(width:Number, height:Number, zoom:Number):void{
-	  zoomPercentage = zoom / 100;
+	    zoomPercentage = zoom / 100;
       shapeFactory.setParentDim(width, height);  
       this.width = width;
       this.height = height;
 
-            for (var i:int = 0; i < this._annotationsList.length; i++){
-                redrawGraphic(this._annotationsList[i] as GraphicObject, i);
-            }      
+      for (var i:int = 0; i < this._annotationsList.length; i++){
+          redrawGraphic(this._annotationsList[i] as GraphicObject, i);
+      }
+      wbCanvas.textToolbar.visible = false;
     }
         
     /* called when a user is made presenter, automatically make all the textfields currently on the page editable, so that they can edit it. */
@@ -408,7 +398,6 @@ package org.bigbluebutton.modules.whiteboard
        further and so that only the presenter can edit it.
     */
     public function makeTextObjectsUneditable(e:MadePresenterEvent):void {
-      LogUtil.debug("MADE PRESENTER IS PRESENTER FALSE");
 //      var texts:Array = getAllTexts();
 //      for(var i:int = 0; i < texts.length; i++) {
 //        (texts[i] as TextObject).makeEditable(false);
@@ -433,21 +422,19 @@ package org.bigbluebutton.modules.whiteboard
             } else if(gobj.type == WhiteboardConstants.TYPE_TEXT) {
                 var origTobj:TextObject = gobj as TextObject;                
                 var an:Annotation = whiteboardModel.getAnnotation(origTobj.id);
-                if (an == null) {
-                    LogUtil.error("Text with id [" + origTobj.id + "] is missing.");
-                } else {
-          wbCanvas.removeGraphic(origTobj as DisplayObject);
-//          addNormalText(an);
-          var tobj:TextObject = shapeFactory.redrawTextObject(an, origTobj);
-          tobj.setGraphicID(origTobj.id);
-          tobj.status = origTobj.status;
-          tobj.multiline = true;
-          tobj.wordWrap = true;
-          tobj.background = false;
-          tobj.makeEditable(false);
-          tobj.background = false;          
-          wbCanvas.addGraphic(tobj);
-                    _annotationsList[objIndex] = tobj;
+                if (an != null) {
+                  wbCanvas.removeGraphic(origTobj as DisplayObject);
+                  //          addNormalText(an);
+                  var tobj:TextObject = shapeFactory.redrawTextObject(an, origTobj);
+                  tobj.setGraphicID(origTobj.id);
+                  tobj.status = origTobj.status;
+                  tobj.multiline = true;
+                  tobj.wordWrap = true;
+                  tobj.background = false;
+                  tobj.makeEditable(false);
+                  tobj.background = false;          
+                  wbCanvas.addGraphic(tobj);
+                  _annotationsList[objIndex] = tobj;
                 }            
       }
     }
@@ -466,17 +453,12 @@ package org.bigbluebutton.modules.whiteboard
       if (event.keyCode  == Keyboard.DELETE || event.keyCode  == Keyboard.BACKSPACE || event.keyCode  == Keyboard.ENTER) { 
         var sendStatus:String = TextObject.TEXT_UPDATED;
         var tobj:TextObject = event.target as TextObject;  
-        
-        // if the enter key is pressed, commit the text
-        if (event.keyCode  == Keyboard.ENTER) {
-          wbCanvas.stage.focus = null;
-          tobj.stage.focus = null;
-                    
-                    // The ENTER/RETURN key has been pressed. Publish the text.                   
-                    sendStatus = TextObject.TEXT_PUBLISHED;
-        }
         sendTextToServer(sendStatus, tobj);  
-      }         
+      }
+      // stops stops page changing when trying to navigate the text box
+      if (event.keyCode == Keyboard.LEFT || event.keyCode == Keyboard.RIGHT) {
+        event.stopPropagation();
+      }
     }
     
         public function textObjTextChangeListener(event:Event):void {
@@ -501,8 +483,8 @@ package org.bigbluebutton.modules.whiteboard
     
         private function maintainFocusToTextBox(event:FocusEvent):void {
             var tf:TextObject = event.currentTarget as TextObject;
-            wbCanvas.stage.focus = tf;
-            tf.stage.focus = tf;
+            if (wbCanvas.stage.focus != tf) wbCanvas.stage.focus = tf;
+            if (tf.stage.focus != tf) tf.stage.focus = tf;
             currentlySelectedTextObject = tf;
             var e:GraphicObjectFocusEvent = new GraphicObjectFocusEvent(GraphicObjectFocusEvent.OBJECT_SELECTED);
             e.data = tf;
@@ -524,7 +506,6 @@ package org.bigbluebutton.modules.whiteboard
         * input to the text annotation.
         */
         private function bindToKeyboardEvents(bindToEvents:Boolean):void {
-            LogUtil.debug("**************************** Tell others to bind to keyboard events [" + bindToEvents + "]***************************");
             var navEvent:NavigationEvent = new NavigationEvent(NavigationEvent.BIND_KEYBOARD_EVENT);
             navEvent.bindToKeyboard = bindToEvents;
             wbCanvas.dispatchEvent(navEvent);            
@@ -543,13 +524,13 @@ package org.bigbluebutton.modules.whiteboard
           break;
       }  
             
-            if (status == TextObject.TEXT_PUBLISHED) {
-              tobj.deregisterListeners(textObjGainedFocusListener, textObjLostFocusListener, textObjTextChangeListener, textObjSpecialListener);
-                var e:GraphicObjectFocusEvent = new GraphicObjectFocusEvent(GraphicObjectFocusEvent.OBJECT_DESELECTED);
-                e.data = tobj;
-                wbCanvas.dispatchEvent(e);   
+      if (status == TextObject.TEXT_PUBLISHED) {
+          tobj.deregisterListeners(textObjGainedFocusListener, textObjLostFocusListener, textObjTextChangeListener, textObjSpecialListener);
+          var e:GraphicObjectFocusEvent = new GraphicObjectFocusEvent(GraphicObjectFocusEvent.OBJECT_DESELECTED);
+          e.data = tobj;
+          wbCanvas.dispatchEvent(e);   
                              
-            }
+      }
 
 //      LogUtil.debug("SENDING TEXT: [" + tobj.textSize + "]");
       
@@ -563,20 +544,19 @@ package org.bigbluebutton.modules.whiteboard
       annotation["background"] = tobj.background;
       annotation["x"] = tobj.getOrigX();
       annotation["y"] = tobj.getOrigY();
-	  annotation["dataPoints"] = tobj.getOrigX() + "," +tobj.getOrigY();
+	    annotation["dataPoints"] = tobj.getOrigX() + "," +tobj.getOrigY();
       annotation["fontSize"] = tobj.textSize;
       annotation["calcedFontSize"] = GraphicFactory.normalize(tobj.textSize, shapeFactory.parentHeight);
       annotation["textBoxWidth"] = tobj.textBoxWidth;
       annotation["textBoxHeight"] = tobj.textBoxHeight;
       
-      var pn:Object = whiteboardModel.getCurrentPresentationAndPage();
-      if (pn != null) {
-        annotation["presentationID"] = pn.presentationID;
-        annotation["pageNumber"] = pn.currentPageNumber;
+      if (tobj._whiteboardID != null) {
+        annotation["whiteboardId"] = tobj._whiteboardID;        
+        var msg:Annotation = new Annotation(tobj.id, "text", annotation);
+        wbCanvas.sendGraphicToServer(msg, WhiteboardDrawEvent.SEND_TEXT);
       }
       
-      var msg:Annotation = new Annotation(tobj.id, "text", annotation);
-      wbCanvas.sendGraphicToServer(msg, WhiteboardDrawEvent.SEND_TEXT);
+
       
 /*      
       var tan:TextDrawAnnotation = shapeFactory.createTextObject(tobj.text, tobj.textColor, 

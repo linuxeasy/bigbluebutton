@@ -17,14 +17,16 @@
 *
 */
 package org.bigbluebutton.main.model {
-	import com.asfusion.mate.events.Dispatcher;
 	import flash.events.NetStatusEvent;
 	import flash.net.NetConnection;
-	import org.bigbluebutton.common.LogUtil;
-	import org.bigbluebutton.main.events.PortTestEvent;
+	
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.main.model.modules.ModulesDispatcher;
 
 	public class PortTestProxy {
+		private static const LOGGER:ILogger = getClassLogger(PortTestProxy);      
+    
 		private var nc:NetConnection;
 		private var protocol:String;
 		private var port:String;
@@ -33,25 +35,23 @@ package org.bigbluebutton.main.model {
 		private var uri:String;
 		private var modulesDispatcher:ModulesDispatcher;
 		
-		public function PortTestProxy() {
-			modulesDispatcher = new ModulesDispatcher();
+		public function PortTestProxy(modulesDispatcher: ModulesDispatcher) {
+			this.modulesDispatcher = modulesDispatcher;
 		}
 		
 		public function connect(protocol:String = "", hostname:String = "", port:String = "", application:String = "", testTimeout:Number = 10000):void {
 			var portTest:PortTest = new PortTest(protocol,hostname,port,application, testTimeout);
 			portTest.addConnectionSuccessListener(connectionListener);
+      var red5Url:String = protocol + "://" + hostname + "/" + application;
+      
 			portTest.connect();
 		}
 		
 		private function connectionListener(status:String, protocol:String, hostname:String, port:String, application:String):void {
 			uri = protocol + "://" + hostname + "/" + application;
 			if (status == "SUCCESS") {				
-				LogUtil.debug("Successfully connected to " + uri);
-				modulesDispatcher.sendPortTestSuccessEvent(port, hostname, protocol, application);
-				
+				modulesDispatcher.sendPortTestSuccessEvent(port, hostname, protocol, application);			
 			} else {
-				LogUtil.error("Failed to connect to " + uri);
-				
 				modulesDispatcher.sendPortTestFailedEvent(port, hostname, protocol, application);
 			}				 		
 		}
@@ -66,15 +66,14 @@ package org.bigbluebutton.main.model {
 			var statusCode : String = info.code;
 			
 			if (statusCode == "NetConnection.Connect.Success") {
-				LogUtil.debug("Successfully connected to " + uri);
 				modulesDispatcher.sendPortTestSuccessEvent(port, hostname, protocol, application);
 			} else if (statusCode == "NetConnection.Connect.Rejected" ||
 				 	  statusCode == "NetConnection.Connect.Failed" || 
 				 	  statusCode == "NetConnection.Connect.Closed" ) {
-				LogUtil.error("Failed to connect to " + uri);
+				LOGGER.error("::netStatusEventHandler - Failed to connect to {0}", [uri]);
 				modulesDispatcher.sendPortTestFailedEvent(port, hostname, protocol, application);
 			} else {
-				LogUtil.error("Failed to connect to " + uri + " due to " + statusCode);
+				LOGGER.error("Failed to connect to {0} due to {1}", [uri, statusCode]);
 			}
 			// Close NetConnection.
 			close();

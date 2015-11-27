@@ -20,7 +20,7 @@ package org.bigbluebutton.deskshare.server;
 
 import org.apache.mina.core.buffer.IoBuffer;
 import org.red5.logging.Red5LoggerFactory;
-import org.red5.server.api.stream.IVideoStreamCodec;
+import org.red5.codec.IVideoStreamCodec;
 import org.slf4j.Logger;
 
 public class ScreenVideo implements IVideoStreamCodec {
@@ -81,5 +81,17 @@ public class ScreenVideo implements IVideoStreamCodec {
     	log.debug("getting DecoderConfiguration");
 		return data;
     }
+
+	@Override
+	public FrameData getInterframe(int arg0) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public int getNumInterframes() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 }
 

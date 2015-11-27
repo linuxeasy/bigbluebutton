@@ -20,12 +20,12 @@ package org.bigbluebutton.modules.chat.services
 {
   import flash.events.IEventDispatcher;
   
-  import org.bigbluebutton.common.LogUtil;
+  import org.as3commons.logging.api.ILogger;
+  import org.as3commons.logging.api.getClassLogger;
   import org.bigbluebutton.core.BBB;
   import org.bigbluebutton.core.EventConstants;
   import org.bigbluebutton.core.events.CoreEvent;
   import org.bigbluebutton.main.model.users.IMessageListener;
-  import org.bigbluebutton.modules.chat.ChatConstants;
   import org.bigbluebutton.modules.chat.events.PrivateChatMessageEvent;
   import org.bigbluebutton.modules.chat.events.PublicChatMessageEvent;
   import org.bigbluebutton.modules.chat.events.TranscriptEvent;
@@ -33,6 +33,11 @@ package org.bigbluebutton.modules.chat.services
   
   public class MessageReceiver implements IMessageListener
   {
+    
+	private static const LOGGER:ILogger = getClassLogger(MessageReceiver);      
+
+    private var welcomed:Boolean = false;
+    
     public var dispatcher:IEventDispatcher;
     
     public function MessageReceiver()
@@ -58,23 +63,28 @@ package org.bigbluebutton.modules.chat.services
     }
     
     private function handleChatRequestMessageHistoryReply(message:Object):void {
-      var msgCount:Number = message.count as Number;
-      for (var i:int = 0; i < msgCount; i++) {
-        handleChatReceivePublicMessageCommand(message.messages[i]);
+      LOGGER.debug("Handling chat history message [{0}]", [message.msg]);
+      var chats:Array = JSON.parse(message.msg) as Array;
+      
+      for (var i:int = 0; i < chats.length; i++) {
+        handleChatReceivePublicMessageCommand(chats[i], true);
       }
-           
-      var pcEvent:TranscriptEvent = new TranscriptEvent(TranscriptEvent.TRANSCRIPT_EVENT);
-      dispatcher.dispatchEvent(pcEvent);
+
+//      if (!welcomed) {
+        var pcEvent:TranscriptEvent = new TranscriptEvent(TranscriptEvent.TRANSCRIPT_EVENT);
+        dispatcher.dispatchEvent(pcEvent);
+//        welcomed = true;
+//      }
     }
         
-    private function handleChatReceivePublicMessageCommand(message:Object):void {
-      LogUtil.debug("Handling public chat message [" + message.message + "]");
+    private function handleChatReceivePublicMessageCommand(message:Object, history:Boolean = false):void {
+      LOGGER.debug("Handling public chat message [{0}]", [message.message]);
+      
       var msg:ChatMessageVO = new ChatMessageVO();
       msg.chatType = message.chatType;
       msg.fromUserID = message.fromUserID;
       msg.fromUsername = message.fromUsername;
       msg.fromColor = message.fromColor;
-      msg.fromLang = message.fromLang;
       msg.fromTime = message.fromTime;
       msg.fromTimezoneOffset = message.fromTimezoneOffset;
       msg.toUserID = message.toUserID;
@@ -83,6 +93,7 @@ package org.bigbluebutton.modules.chat.services
       
       var pcEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
       pcEvent.message = msg;
+      pcEvent.history = history;
       dispatcher.dispatchEvent(pcEvent);
       
       var pcCoreEvent:CoreEvent = new CoreEvent(EventConstants.NEW_PUBLIC_CHAT);
@@ -91,13 +102,13 @@ package org.bigbluebutton.modules.chat.services
     }
     
     private function handleChatReceivePrivateMessageCommand(message:Object):void {
-      LogUtil.debug("Handling private chat message");
+      LOGGER.debug("Handling private chat message");
+      
       var msg:ChatMessageVO = new ChatMessageVO();
       msg.chatType = message.chatType;
       msg.fromUserID = message.fromUserID;
       msg.fromUsername = message.fromUsername;
       msg.fromColor = message.fromColor;
-      msg.fromLang = message.fromLang;
       msg.fromTime = message.fromTime;
       msg.fromTimezoneOffset = message.fromTimezoneOffset;
       msg.toUserID = message.toUserID;

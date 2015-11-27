@@ -28,31 +28,26 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 	
 	<maps:ChatEventMap id="chatLocalEventMap"/>
 	
-	<mate:Listener type="{TranscriptEvent.TRANSCRIPT_EVENT}" method="handleTranscriptLoadedEvent"/>
-	
 	<mx:Script>
 		<![CDATA[
-      import com.asfusion.mate.events.Dispatcher;
-      
-      import mx.controls.Alert;
-      
-      import org.bigbluebutton.common.LogUtil;
-      import org.bigbluebutton.modules.chat.ChatUtil;
-      import org.bigbluebutton.modules.chat.events.ChatEvent;
-      import org.bigbluebutton.modules.chat.events.PublicChatMessageEvent;
-      import org.bigbluebutton.modules.chat.events.StartChatModuleEvent;
-      import org.bigbluebutton.modules.chat.events.StopChatModuleEvent;
-      import org.bigbluebutton.modules.chat.events.TranscriptEvent;
-      import org.bigbluebutton.modules.chat.vo.ChatMessageVO;
-      import org.bigbluebutton.modules.chat.views.ChatBox;
+			import com.asfusion.mate.events.Dispatcher;
+			
+			import org.as3commons.logging.api.ILogger;
+			import org.as3commons.logging.api.getClassLogger;
+			import org.bigbluebutton.common.IBigBlueButtonModule;
+			import org.bigbluebutton.modules.chat.events.StartChatModuleEvent;
+			import org.bigbluebutton.modules.chat.events.StopChatModuleEvent;
 		
+			private static const LOGGER:ILogger = getClassLogger(ChatModule);
+
+			
 			private var _moduleName:String = "Chat Module";			
 			private var _attributes:Object;
 			
 			private var dispatcher:Dispatcher = new Dispatcher();
 			
 			private function onCreationComplete():void {
-				LogUtil.debug("ChatModule Initialized");			
+				LOGGER.debug("ChatModule Initialized");
 			}
 			
 			public function get moduleName():String {
@@ -70,18 +65,14 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 			public function get username():String {
 				return _attributes.username;
 			}
-			
-			public function get connection():NetConnection {
-				return _attributes.connection;
-			}
-			
+						
 			public function get mode():String {
 				if (_attributes.mode == null) {					
 					//_attributes.mode = "PLAYBACK"
 					_attributes.mode = "LIVE"
-					LogUtil.debug('Setting ChatModule mode: ' + _attributes.mode);
+					LOGGER.debug('Setting ChatModule mode: {0}', [_attributes.mode]);
 				}
-				LogUtil.debug('ChatModule mode: ' + _attributes.mode);
+				LOGGER.debug('ChatModule mode: {0}', [_attributes.mode]);
 				return _attributes.mode;
 			}
 						
@@ -93,57 +84,27 @@ with BigBlueButton; if not, see <http://www.gnu.org/licenses/>.
 				return _attributes.userrole as String;
 			}
 			
-			public function get traslationEnabled():Boolean{
-				if (_attributes.translationEnabled == "false") return false;
-				else return true;
-			}
-			
-			public function get translationOn():Boolean{
-				if (_attributes.translationOn == "false") return false;
-				else return true;
-			}
-			
-			public function start(attributes:Object):void {	
-				LogUtil.debug("chat attr: " + attributes.username);
-				_attributes = attributes;	
-				LogUtil.debug("Dispatching StartChatModuleEvent");
+			public function start(attributes:Object):void {
+				LOGGER.debug("chat attr: ", [attributes.username]);
+				_attributes = attributes;
+				LOGGER.debug("Dispatching StartChatModuleEvent");
 				
 				var event:StartChatModuleEvent = new StartChatModuleEvent(StartChatModuleEvent.START_CHAT_MODULE_EVENT)
 				event.start = true;
 				event.attributes = _attributes;
-				event.translationOn = translationOn;
-				event.translationEnabled = traslationEnabled;
 				dispatcher.dispatchEvent(event);
 			}
 		
 			public function stop():void {
-				LogUtil.debug("Dispatching StopChatModuleEvent");
+				LOGGER.debug("Dispatching StopChatModuleEvent");
 				var event:StopChatModuleEvent = new StopChatModuleEvent(StopChatModuleEvent.STOP_CHAT_MODULE_EVENT);
 				dispatcher.dispatchEvent(event);
 			}
 			
 			private function handlePrivateChatMessageEvent(event:Event):void {
-				trace("Received PRIVATE CHAT MESSAGE EVENT");
+				LOGGER.debug("Received PRIVATE CHAT MESSAGE EVENT");
 			}
 			
-			private function handleTranscriptLoadedEvent(event:Event):void {
-				LogUtil.debug("Handling TranscriptLoadedEvent");
-				var welcome:String = _attributes.welcome as String;
-				if (welcome != "") {
-//					var welcomeEvent:PublicChatMessageEvent = new PublicChatMessageEvent(PublicChatMessageEvent.PUBLIC_CHAT_MESSAGE_EVENT);
-//					var chatobj:ChatMessageVO = new ChatMessageVO();
-//					chatobj.message = welcome;
-//					chatobj.username = " ";
-//					chatobj.color = "0";
-//					chatobj.time = ChatUtil.getCurrentTime();
-//					chatobj.language = "en";
-//					chatobj.userid = "";
-					
-		//			welcomeEvent.chatobj = chatobj;
-//					var globalDispatcher:Dispatcher = new Dispatcher();
-		//			globalDispatcher.dispatchEvent(welcomeEvent);
-				}	
-			}
 		]]>
 	</mx:Script>
 </mx:Module>
